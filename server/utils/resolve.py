@@ -32,7 +32,7 @@ async def get_gallery_info(url):
     )
 
     # 获取缩略图二进制流
-    response = await http.get(info.thumb, headers={"Cookie": cfg["eh_cookie"]})
+    response = await http.get(info.thumb.replace("s.exhentai", "ehgt"))
     thumb = BytesIO(response.content)
 
     return (
