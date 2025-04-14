@@ -1,5 +1,5 @@
 import random
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from loguru import logger
@@ -40,7 +40,8 @@ async def checkin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     today = datetime.now(ZoneInfo("Asia/Shanghai")).date()
     already_checked = any(
         record.source == "签到"
-        and record.expire_time.astimezone(ZoneInfo("Asia/Shanghai")).date() > today
+        and record.expire_time.astimezone(ZoneInfo("Asia/Shanghai")).date()
+        == today + timedelta(days=7)
         for record in user.GP_records
     )
 
@@ -48,13 +49,13 @@ async def checkin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.effective_message.reply_text("📌 你今天已经签过到了~")
         return
 
+    original_balance = await get_current_GP(user)
     amount = random.randint(15000, 40000)
     await GPRecord.create(user=user, amount=amount)
 
-    current_GP = await get_current_GP(user)
     await update.effective_message.reply_text(
         f"✅ 签到成功！获得 {amount} GP！\n"
-        f"💰 当前余额：{current_GP} GP\n"
+        f"💰 当前余额：{original_balance + amount} GP\n"
         f"⚠️ 注意：签到获得的 GP 有效期为 7 天"
     )
     logger.info(f"{user.name}（{user.id}）签到成功，获得 {amount} GP")

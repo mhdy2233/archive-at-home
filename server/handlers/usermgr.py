@@ -82,6 +82,7 @@ async def handle_GP_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user_id = context.user_data.get("user_id")
     user = await User.get(id=user_id).prefetch_related("GP_records")
+    original_balance = await get_current_GP(user)
 
     await GPRecord.create(
         user=user,
@@ -90,9 +91,8 @@ async def handle_GP_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
         expire_time=datetime.datetime.max,
     )
 
-    new_balance = await get_current_GP(user)
     await update.effective_message.reply_text(
-        f"为用户 {user.name} 添加了 {amount} GP\n当前剩余：{new_balance} GP"
+        f"为用户 {user.name} 添加了 {amount} GP\n当前剩余：{original_balance + amount} GP"
     )
     logger.info(
         f"管理员 {update.effective_user.name} 为用户 {user.name} 添加 {amount} GP"
