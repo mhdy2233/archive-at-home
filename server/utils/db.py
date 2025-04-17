@@ -1,7 +1,10 @@
+import random
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
+from loguru import logger
 from tortoise import Tortoise, fields
 from tortoise.models import Model
 
@@ -49,6 +52,27 @@ async def get_current_GP(user: User) -> int:
     return sum(
         r.amount for r in user.GP_records if r.expire_time > now and r.amount > 0
     )
+
+
+async def checkin(user: User):
+    today = datetime.now(ZoneInfo("Asia/Shanghai")).date()
+
+    already_checked = any(
+        record.source == "签到"
+        and record.expire_time.astimezone(ZoneInfo("Asia/Shanghai")).date()
+        == today + timedelta(days=7)
+        for record in user.GP_records
+    )
+
+    if already_checked:
+        return 0, 0
+
+    original_balance = await get_current_GP(user)
+    amount = random.randint(10000, 20000)
+    await GPRecord.create(user=user, amount=amount)
+    logger.info(f"{user.name}（{user.id}）签到成功，获得 {amount} GP")
+
+    return amount, original_balance + amount
 
 
 # 扣除 GP
