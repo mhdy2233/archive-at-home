@@ -1,4 +1,5 @@
 ﻿ehentai:
   cookies: ipb_member_id=xxxxxxx; ipb_pass_hash=xxxxxxx; igneous=xxxxxxx
-  enable_GP_cost: True
+  # 每日最大 GP消耗量，-1 为不限制，0 为禁止GP消耗
+  max_GP_cost: -1
 proxy:
