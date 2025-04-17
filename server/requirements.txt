@@ -4,3 +4,5 @@ openpyxl
 python-telegram-bot[job-queue]
 PyYAML
 tortoise-orm
+fastapi
+uvicorn

@@ -1,10 +1,11 @@
 import random
+import uuid
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from loguru import logger
-from telegram import Update
-from telegram.ext import CommandHandler, ContextTypes
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
 from tortoise.functions import Count
 
 from handlers.resolver import resolve_gallery_by_url
@@ -73,8 +74,31 @@ async def my_info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
 
     current_GP = await get_current_GP(user)
-    await update.effective_message.reply_text(
-        f"🧾 用户组：{user.group}\n📊 使用次数：{user.history_count} 次\n💰 剩余 GP：{current_GP}"
+    text = f"🧾 用户组：{user.group}\n📊 使用次数：{user.history_count} 次\n💰 剩余 GP：{current_GP}"
+
+    if update.effective_chat.type == "private":
+        text += f"\nAPI Key：`{user.apikey}`"
+        keyboard = [
+            [InlineKeyboardButton("重置 API Key", callback_data="reset_apikey")]
+        ]
+        await update.effective_message.reply_text(
+            text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="MarkdownV2"
+        )
+    else:
+        await update.effective_message.reply_text(text)
+
+
+async def reset_apikey(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    user_id = update.effective_user.id
+    user = await User.get(id=user_id)
+    user.apikey = str(uuid.uuid4())
+    await user.save()
+
+    await query.edit_message_text(
+        f"重置成功\nAPI Key：`{user.apikey}`", parse_mode="MarkdownV2"
     )
 
 
@@ -83,3 +107,4 @@ def register(app):
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("checkin", checkin))
     app.add_handler(CommandHandler("myinfo", my_info))
+    app.add_handler(CallbackQueryHandler(reset_apikey, pattern=r"^reset_apikey$"))
