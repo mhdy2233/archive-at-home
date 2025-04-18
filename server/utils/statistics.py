@@ -113,8 +113,14 @@ async def get_archive_history_file():
         "节点提供者",
     ]
 
-    data = [
-        [
+    data = []
+    for history in histories:
+        provider_name = (
+            history.client.provider.name
+            if history.client and history.client.provider
+            else "（已删除）"
+        )
+        row = [
             history.time.astimezone(ZoneInfo("Asia/Shanghai")).strftime(
                 "%Y-%m-%d %H:%M:%S"
             ),
@@ -122,9 +128,8 @@ async def get_archive_history_file():
             history.user.name,
             str(history.user_id),
             history.GP_cost,
-            history.client.provider.name,
+            provider_name,
         ]
-        for history in histories
-    ]
+        data.append(row)
 
     return await _create_excel(data, title)

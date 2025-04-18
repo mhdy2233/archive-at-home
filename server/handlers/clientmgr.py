@@ -137,17 +137,16 @@ async def client_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [
             InlineKeyboardButton(
                 "🔄 刷新状态 / 启用", callback_data=f"edit_client|{client_id}|refresh"
-            )
-        ],
-        [
+            ),
             InlineKeyboardButton(
                 "⏸️ 停用节点", callback_data=f"edit_client|{client_id}|suspend"
-            )
+            ),
         ],
         [
+            InlineKeyboardButton("⌨ 编辑 URL", callback_data=f"edit_url|{client_id}"),
             InlineKeyboardButton(
                 "🗑 删除节点", callback_data=f"edit_client|{client_id}|delete"
-            )
+            ),
         ],
     ]
 
@@ -184,6 +183,48 @@ async def edit_client(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
 
 
+async def handle_edit_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    await query.delete_message()
+
+    client_id = query.data.split("|")[1]
+    context.user_data["client_id"] = client_id
+
+    await update.effective_user.send_message("请输入新的节点 URL\n/cancel 取消操作")
+    return 0
+
+
+async def get_new_url_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    url = update.effective_message.text.strip()
+    if not re.match(r"^https?://[^\s/$.?#].[^\s]*$", url):
+        await update.effective_message.reply_text(
+            "❌ 请输入合法的 URL\n/cancel 取消操作"
+        )
+        return 0
+
+    client_id = context.user_data.get("client_id")
+    client = await Client.get(id=client_id)
+    client.url = url
+    await client.save()
+
+    status, enable_GP_cost = await refresh_client_status(client)
+    text = (
+        f"✅ 编辑成功\n"
+        f"🌐 URL：{url}\n"
+        f"📡 状态：{status}\n"
+        f"💸 允许 GP 消耗：{'是 ✅' if enable_GP_cost else '否 ❌'}"
+    )
+    logger.info(f"{update.effective_user.name} 编辑节点 URL {url}")
+
+    keyboard = [[InlineKeyboardButton("⬅ 返回", callback_data="manage_client")]]
+
+    await update.effective_message.reply_text(
+        text, reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+    return ConversationHandler.END
+
+
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.effective_message.reply_text("❎ 操作已取消")
     return ConversationHandler.END
@@ -198,7 +239,16 @@ def register(app):
         fallbacks=[CommandHandler("cancel", cancel)],
     )
 
+    edit_url_handler = ConversationHandler(
+        entry_points=[CallbackQueryHandler(handle_edit_url, pattern=r"^edit_url")],
+        states={
+            0: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_new_url_input)]
+        },
+        fallbacks=[CommandHandler("cancel", cancel)],
+    )
+
     app.add_handler(add_client_handler)
+    app.add_handler(edit_url_handler)
     app.add_handler(
         CallbackQueryHandler(
             edit_client, pattern=r"^edit_client\|\d+\|(?:refresh|suspend|delete)$"

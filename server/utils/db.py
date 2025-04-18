@@ -42,7 +42,12 @@ class ArchiveHistory(Model):
     gid = fields.CharField(max_length=20)
     token = fields.CharField(max_length=20)
     GP_cost = fields.IntField()
-    client = fields.ForeignKeyField("models.Client", related_name="archive_histories")
+    client = fields.ForeignKeyField(
+        "models.Client",
+        related_name="archive_histories",
+        null=True,
+        on_delete=fields.SET_NULL,
+    )
     time = fields.DatetimeField(default=datetime.now)
 
 
