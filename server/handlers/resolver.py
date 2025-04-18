@@ -5,7 +5,7 @@ from telegram import CopyTextButton, InlineKeyboardButton, InlineKeyboardMarkup,
 from telegram.ext import CallbackQueryHandler, ContextTypes, MessageHandler, filters
 
 from utils.db import User, deduct_GP, get_current_GP
-from utils.resolve import destroy_url, get_download_url, get_gallery_info
+from utils.resolve import get_download_url, get_gallery_info
 
 
 async def resolve_gallery_by_url(
@@ -75,7 +75,7 @@ async def download(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     caption = re.sub(
-        r"(\n\n)?(🗑 已销毁链接|❌ 下载链接获取失败，请稍后再试)$",
+        r"\n\n❌ 下载链接获取失败，请稍后再试$",
         "",
         update.effective_message.caption,
     )
@@ -102,12 +102,6 @@ async def download(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     ),
                     InlineKeyboardButton("📥 跳转下载", url=d_url),
                 ],
-                [
-                    InlineKeyboardButton(
-                        "🗑 销毁链接",
-                        callback_data=f"destroy|{gid}|{token}|{require_GP}|{user_GP_cost}|{client.id}",
-                    )
-                ],
             ]
         )
 
@@ -123,42 +117,6 @@ async def download(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"https://e-hentai.org/g/{gid}/{token}/ 下载链接获取失败")
 
 
-async def destroy(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    _, gid, token, require_GP, user_GP_cost, client_id = query.data.split("|")
-
-    await destroy_url(gid, token, client_id)
-
-    caption = re.sub(
-        r"\n\n✅ 下载链接获取成功\n📡 节点提供者：.*$",
-        "",
-        update.effective_message.caption,
-    )
-
-    keyboard = InlineKeyboardMarkup(
-        [
-            [
-                InlineKeyboardButton(
-                    "🌐 跳转画廊", url=f"https://e-hentai.org/g/{gid}/{token}/"
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    "📦 归档下载",
-                    callback_data=f"download|{gid}|{token}|{require_GP}|{user_GP_cost}",
-                )
-            ],
-        ]
-    )
-
-    await update.effective_message.edit_caption(
-        caption=f"{caption}\n\n🗑 已销毁链接",
-        reply_markup=keyboard,
-    )
-    logger.info(f"https://e-hentai.org/g/{gid}/{token}/ 下载链接已销毁")
-
-
 def register(app):
     app.add_handler(
         MessageHandler(
@@ -167,4 +125,3 @@ def register(app):
         )
     )
     app.add_handler(CallbackQueryHandler(download, pattern=r"^download"))
-    app.add_handler(CallbackQueryHandler(destroy, pattern=r"^destroy"))

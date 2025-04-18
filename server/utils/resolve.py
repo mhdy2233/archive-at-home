@@ -7,7 +7,7 @@ from loguru import logger
 
 from config.config import cfg
 from utils.client import get_available_clients
-from utils.db import ArchiveHistory, Client
+from utils.db import ArchiveHistory
 from utils.ehArchiveD import EHentai
 from utils.http_client import http
 
@@ -83,16 +83,3 @@ async def get_download_url(user, gid, token, require_GP):
         )
 
     return None, None
-
-
-async def destroy_url(gid, token, client_id):
-    """请求节点销毁链接"""
-    client = await Client.get(id=client_id)
-    try:
-        await http.post(
-            urljoin(client.url, "/destroy"),
-            json={"gid": gid, "token": token},
-            timeout=10,
-        )
-    except Exception:
-        pass  # 容错处理，无需响应

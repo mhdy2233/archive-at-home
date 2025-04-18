@@ -28,6 +28,7 @@ async def resolve(request: Request):
             d_url = None
         else:
             d_url = await ehentai.get_download_url(archiver_info)
+            await ehentai.remove_download_url(archiver_info)
             msg = "Success"
             if config["ehentai"]["max_GP_cost"] > 0:
                 GP_usage_log.append((time.time(), require_GP))
@@ -44,22 +45,9 @@ async def resolve(request: Request):
         )
     except Exception as e:
         logger.error(e)
-        return JSONResponse(content={"msg": "Failed", "status": "解析功能异常"})
-
-
-@app.post("/destroy")
-async def destroy(request: Request):
-    try:
-        data = await request.json()
-        archiver_info = await ehentai.get_archiver_info(
-            GUrl(data["gid"], data["token"])
+        return JSONResponse(
+            content={"msg": "Failed", "status": await get_status(ehentai)}
         )
-        if await ehentai.remove_download_url(archiver_info):
-            logger.info(f"销毁 https://e-hentai.org/g/{data['gid']}/{data['token']}/")
-            return JSONResponse(content={"msg": "Success"})
-    except Exception as e:
-        logger.error(e)
-    return JSONResponse(content={"msg": "Failed"})
 
 
 @app.get("/status")
