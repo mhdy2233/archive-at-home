@@ -1,3 +1,4 @@
+from collections import defaultdict
 from datetime import datetime
 from html import unescape
 from io import BytesIO
@@ -14,11 +15,45 @@ from utils.http_client import http
 ehentai = EHentai(cfg["eh_cookie"], cfg["proxy"])
 
 
+async def fetch_tag_map(_):
+    global tag_map
+    tag_map = defaultdict(lambda: {"name": "", "data": {}})
+
+    db = (
+        await http.get(
+            "https://github.com/EhTagTranslation/Database/releases/latest/download/db.text.json",
+            follow_redirects=True,
+        )
+    ).json()
+
+    for entry in db["data"][2:]:
+        namespace = entry["namespace"]
+        tag_map[namespace]["name"] = entry["frontMatters"]["name"]
+        tag_map[namespace]["data"].update(
+            {key: value["name"] for key, value in entry["data"].items()}
+        )
+
+
 async def get_gallery_info(url):
     """获取画廊基础信息 + 缩略图"""
     info = await ehentai.get_archiver_info(url)
     require_GP = await ehentai.get_required_gp(info)
     user_GP_cost = int(info.filesize / 52428.8)
+
+    raw_tags = info.tags
+    tags = defaultdict(list)
+    for item in raw_tags:
+        ns, tag = item.split(":")
+        tag_info = tag_map.get(ns, {})
+        tag_name = tag_info["data"].get(tag)
+        ns_name = tag_info["name"] or ns
+
+        if tag_name:
+            tags[ns_name].append(f"#{tag_name}")
+
+    tag_text = "\n".join(
+        f"{ns_name}：{' '.join(tags_list)}" for ns_name, tags_list in tags.items()
+    )
 
     text = (
         f"📌 主标题：{unescape(info.title)}\n"
@@ -28,6 +63,7 @@ async def get_gallery_info(url):
         f"🕒 上传时间：{datetime.fromtimestamp(float(info.posted)):%Y-%m-%d %H:%M}\n"
         f"📄 页数：{info.filecount}\n"
         f"⭐ 评分：{info.rating}\n\n"
+        f"{tag_text}\n\n"
         f"💰 归档消耗 GP：{user_GP_cost}"
     )
 
