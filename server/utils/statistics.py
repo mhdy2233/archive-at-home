@@ -5,7 +5,8 @@ from zoneinfo import ZoneInfo
 
 from openpyxl import Workbook
 
-from utils.db import ArchiveHistory, Client, User, get_current_GP
+from db.db import ArchiveHistory, Client, User
+from utils.GP_action import get_current_GP
 
 
 async def get_client_statistics(clients=None):

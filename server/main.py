@@ -4,8 +4,8 @@ import uvicorn
 from loguru import logger
 from telegram.ext import Application
 
-import utils.db as db
 from config.config import cfg
+from db.db import init_db
 from handlers import BOT_COMMANDS, register_all_handlers
 from utils.client import refresh_all_clients
 
@@ -26,7 +26,7 @@ telegram_app = (
 )
 
 register_all_handlers(telegram_app)
-telegram_app.job_queue.run_once(db.init_db, 0, job_kwargs={"misfire_grace_time": 10})
+telegram_app.job_queue.run_once(init_db, 0, job_kwargs={"misfire_grace_time": 10})
 telegram_app.job_queue.run_repeating(refresh_all_clients, interval=3600, first=10)
 
 

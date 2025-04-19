@@ -5,8 +5,9 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
 from tortoise.functions import Count
 
+from db.db import User
 from handlers.resolver import resolve_gallery_by_url
-from utils.db import GPRecord, User, checkin, get_current_GP
+from utils.GP_action import checkin, get_current_GP
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

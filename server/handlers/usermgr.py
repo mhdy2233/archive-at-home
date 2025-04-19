@@ -13,7 +13,8 @@ from telegram.ext import (
 from tortoise.functions import Count
 
 from config.config import cfg
-from utils.db import GPRecord, User, get_current_GP
+from db.db import GPRecord, User
+from utils.GP_action import get_current_GP
 
 
 async def start_usermgr(update: Update, context: ContextTypes.DEFAULT_TYPE):

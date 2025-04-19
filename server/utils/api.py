@@ -1,8 +1,9 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
-from utils.db import User, checkin, deduct_GP, get_current_GP
+from db.db import User
 from utils.ehArchiveD import GUrl
+from utils.GP_action import checkin, deduct_GP, get_current_GP
 from utils.resolve import ehentai, get_download_url
 
 app = FastAPI()

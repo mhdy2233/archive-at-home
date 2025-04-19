@@ -5,7 +5,7 @@ from urllib.parse import urljoin
 from loguru import logger
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
-from utils.db import Client, User
+from db.db import Client, User
 from utils.http_client import http
 
 

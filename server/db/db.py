@@ -1,0 +1,57 @@
+import os
+import uuid
+from datetime import datetime, timedelta
+
+from tortoise import Tortoise, fields
+from tortoise.models import Model
+
+
+class User(Model):
+    id = fields.IntField(pk=True)
+    name = fields.CharField(max_length=50)
+    apikey = fields.CharField(max_length=50, default=str(uuid.uuid4()))
+    group = fields.CharField(max_length=50, default="普通用户")
+
+    GP_records = fields.ReverseRelation["GPRecord"]
+    clients = fields.ReverseRelation["Client"]
+    archive_histories = fields.ReverseRelation["ArchiveHistory"]
+
+
+class GPRecord(Model):
+    user = fields.ForeignKeyField("models.User", related_name="GP_records")
+    amount = fields.IntField()
+    expire_time = fields.DatetimeField(
+        default=lambda: datetime.now() + timedelta(days=7)
+    )
+    source = fields.CharField(max_length=50, default="签到")
+
+
+class Client(Model):
+    url = fields.CharField(max_length=255)
+    status = fields.CharField(max_length=50)
+    enable_GP_cost = fields.BooleanField()
+    provider = fields.ForeignKeyField("models.User", related_name="clients")
+    archive_histories = fields.ReverseRelation["ArchiveHistory"]
+
+
+class ArchiveHistory(Model):
+    user = fields.ForeignKeyField("models.User", related_name="archive_histories")
+    gid = fields.CharField(max_length=20)
+    token = fields.CharField(max_length=20)
+    GP_cost = fields.IntField()
+    client = fields.ForeignKeyField(
+        "models.Client",
+        related_name="archive_histories",
+        null=True,
+        on_delete=fields.SET_NULL,
+    )
+    time = fields.DatetimeField(default=datetime.now)
+
+
+# 初始化数据库
+async def init_db(_):
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    DB_PATH = os.path.join(BASE_DIR, "bot_data.db")
+
+    await Tortoise.init(db_url=f"sqlite://{DB_PATH}", modules={"models": [__name__]})
+    await Tortoise.generate_schemas()

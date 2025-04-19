@@ -11,8 +11,8 @@ from telegram.ext import (
     filters,
 )
 
+from db.db import Client, User
 from utils.client import add_client, refresh_client_status
-from utils.db import Client, User
 from utils.statistics import get_client_statistics, get_usage_statistics
 
 
