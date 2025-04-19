@@ -1,7 +1,6 @@
 from collections import defaultdict
 from datetime import datetime
 from html import unescape
-from io import BytesIO
 from urllib.parse import urljoin
 
 from loguru import logger
@@ -67,13 +66,9 @@ async def get_gallery_info(url):
         f"💰 归档消耗 GP：{user_GP_cost}"
     )
 
-    # 获取缩略图二进制流
-    response = await http.get(info.thumb.replace("s.exhentai", "ehgt"))
-    thumb = BytesIO(response.content)
-
     return (
         text,
-        thumb,
+        info.thumb.replace("s.exhentai", "ehgt"),
         info.gid,
         info.token,
         user_GP_cost,
