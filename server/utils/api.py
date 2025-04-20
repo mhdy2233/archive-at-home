@@ -57,7 +57,7 @@ async def resolve(request: Request):
         except Exception:
             return format_response(4, "获取画廊信息失败")
 
-        current_GP = await get_current_GP(user)
+        current_GP = get_current_GP(user)
         if current_GP < user_GP_cost:
             return format_response(5, "GP 不足")
 
@@ -81,7 +81,7 @@ async def balance(request: Request):
         if isinstance(user, JSONResponse):
             return user
 
-        current_GP = await get_current_GP(user)
+        current_GP = get_current_GP(user)
         return format_response(0, "查询成功", {"current_GP": current_GP})
 
     except Exception as e:

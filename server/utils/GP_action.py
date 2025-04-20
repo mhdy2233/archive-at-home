@@ -8,7 +8,7 @@ from db.db import GPRecord, User
 
 
 # 获取用户当前有效 GP 总额
-async def get_current_GP(user: User) -> int:
+def get_current_GP(user: User) -> int:
     now = datetime.now(tz=timezone.utc)
     return sum(
         r.amount for r in user.GP_records if r.expire_time > now and r.amount > 0
@@ -25,10 +25,10 @@ async def checkin(user: User):
         for record in user.GP_records
     )
 
+    original_balance = get_current_GP(user)
     if already_checked:
-        return 0, 0
+        return 0, original_balance
 
-    original_balance = await get_current_GP(user)
     amount = random.randint(10000, 20000)
     await GPRecord.create(user=user, amount=amount)
     logger.info(f"{user.name}（{user.id}）签到成功，获得 {amount} GP")

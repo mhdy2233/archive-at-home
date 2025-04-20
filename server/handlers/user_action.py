@@ -27,7 +27,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.effective_message.reply_text("✅ 您已经注册过了~")
 
 
-async def checkin_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def handle_checkin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """处理每日签到命令"""
     user = await User.get_or_none(
         id=update.effective_message.from_user.id
@@ -60,7 +60,7 @@ async def myinfo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.effective_message.reply_text("请先使用 /start 注册")
         return
 
-    current_GP = await get_current_GP(user)
+    current_GP = get_current_GP(user)
     text = f"🧾 用户组：{user.group}\n📊 使用次数：{user.history_count} 次\n💰 剩余 GP：{current_GP}"
 
     if update.effective_chat.type == "private":
@@ -81,7 +81,7 @@ async def reset_apikey(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user_id = update.effective_user.id
     user = await User.get(id=user_id)
-    user.apikey = str(uuid.uuid4())
+    user.apikey = uuid.uuid4()
     await user.save()
 
     await query.edit_message_text(
@@ -92,6 +92,6 @@ async def reset_apikey(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def register(app):
     """注册命令处理器"""
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("checkin", checkin_handler))
+    app.add_handler(CommandHandler("checkin", handle_checkin))
     app.add_handler(CommandHandler("myinfo", myinfo))
     app.add_handler(CallbackQueryHandler(reset_apikey, pattern=r"^reset_apikey$"))

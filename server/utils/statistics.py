@@ -94,7 +94,7 @@ async def get_user_list_file():
             str(user.id),
             user.name,
             user.group,
-            await get_current_GP(user),
+            get_current_GP(user),
             *(await get_usage_statistics(user=user)),
         ]
         for user in users

@@ -1,6 +1,6 @@
 import os
-import uuid
 from datetime import datetime, timedelta
+from uuid import uuid4
 
 from tortoise import Tortoise, fields
 from tortoise.models import Model
@@ -9,7 +9,7 @@ from tortoise.models import Model
 class User(Model):
     id = fields.IntField(pk=True)
     name = fields.CharField(max_length=50)
-    apikey = fields.CharField(max_length=50, default=str(uuid.uuid4()))
+    apikey = fields.UUIDField(default=uuid4)
     group = fields.CharField(max_length=50, default="普通用户")
 
     GP_records = fields.ReverseRelation["GPRecord"]

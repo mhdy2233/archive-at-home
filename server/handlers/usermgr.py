@@ -49,7 +49,7 @@ async def handle_user_id_input(update: Update, context: ContextTypes.DEFAULT_TYP
         [InlineKeyboardButton("添加 GP", callback_data=f"add_GP|{user_id}")],
     ]
 
-    remaining_GP = await get_current_GP(user)
+    remaining_GP = get_current_GP(user)
     await update.effective_message.reply_text(
         f"管理用户：{user.name}\n用户组：{user.group}\n历史使用次数：{user.history_count}\n剩余 GP：{remaining_GP}",
         reply_markup=InlineKeyboardMarkup(keyboard),
@@ -83,7 +83,7 @@ async def handle_GP_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user_id = context.user_data.get("user_id")
     user = await User.get(id=user_id).prefetch_related("GP_records")
-    original_balance = await get_current_GP(user)
+    original_balance = get_current_GP(user)
 
     await GPRecord.create(
         user=user,

@@ -1,99 +1,12 @@
 import re
-import uuid
 
 from loguru import logger
-from telegram import (
-    CopyTextButton,
-    InlineKeyboardButton,
-    InlineKeyboardMarkup,
-    InlineQueryResultArticle,
-    InlineQueryResultPhoto,
-    InputTextMessageContent,
-    Update,
-)
-from telegram.ext import (
-    CallbackQueryHandler,
-    ContextTypes,
-    InlineQueryHandler,
-    MessageHandler,
-    filters,
-)
+from telegram import CopyTextButton, InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.ext import CallbackQueryHandler, ContextTypes, MessageHandler, filters
 
 from db.db import User
 from utils.GP_action import deduct_GP, get_current_GP
 from utils.resolve import get_download_url, get_gallery_info
-
-
-async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.inline_query.query.strip()
-
-    # 没输入时提示
-    if not query:
-        results = [
-            InlineQueryResultArticle(
-                id=str(uuid.uuid4()),
-                title="请输入 eh/ex 链接以获取预览",
-                input_message_content=InputTextMessageContent("请输入链接"),
-            )
-        ]
-        await update.inline_query.answer(results)
-        return
-
-    # 正则匹配合法链接（严格格式）
-    pattern = r"^https://e[-x]hentai\.org/g/\d{7}/[a-zA-Z0-9]{10}/?$"
-    match = re.match(pattern, query)
-    if not match:
-        results = [
-            InlineQueryResultArticle(
-                id=str(uuid.uuid4()),
-                title="链接格式错误",
-                input_message_content=InputTextMessageContent("请输入合法链接"),
-            )
-        ]
-        await update.inline_query.answer(results)
-        return
-
-    url = match.group(0)
-
-    try:
-        text, _, thumb, gid, token, _, _ = await get_gallery_info(url)
-    except:
-        results = [
-            InlineQueryResultArticle(
-                id=str(uuid.uuid4()),
-                title="获取画廊信息失败",
-                input_message_content=InputTextMessageContent("请检查链接或稍后再试"),
-            )
-        ]
-        await update.inline_query.answer(results)
-        return
-
-    # 按钮
-    keyboard = InlineKeyboardMarkup(
-        [
-            [InlineKeyboardButton("🌐 跳转画廊", url=url)],
-            [
-                InlineKeyboardButton(
-                    "🤖 在 Bot 中打开",
-                    url=f"https://t.me/{context.application.bot_username}?start={gid}_{token}",
-                )
-            ],
-        ]
-    )
-
-    results = [
-        InlineQueryResultPhoto(
-            id=str(uuid.uuid4()),
-            photo_url=thumb,
-            thumbnail_url=thumb,
-            title="画廊预览",
-            caption=text,
-            reply_markup=keyboard,
-            parse_mode="HTML",
-        )
-    ]
-
-    await update.inline_query.answer(results)
 
 
 async def resolve_gallery_by_url(
@@ -168,7 +81,7 @@ async def download(update: Update, context: ContextTypes.DEFAULT_TYPE):
     _, gid, token, require_GP, user_GP_cost = query.data.split("|")
     user_GP_cost = int(user_GP_cost)
 
-    current_GP = await get_current_GP(user)
+    current_GP = get_current_GP(user)
     if current_GP < user_GP_cost:
         await update.effective_message.reply_text(f"⚠️ GP 不足，当前余额：{current_GP}")
         return
@@ -224,4 +137,3 @@ def register(app):
         )
     )
     app.add_handler(CallbackQueryHandler(download, pattern=r"^download"))
-    app.add_handler(InlineQueryHandler(inline_query))
