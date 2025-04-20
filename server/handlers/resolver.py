@@ -56,7 +56,7 @@ async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
     url = match.group(0)
 
     try:
-        text, thumb, gid, token, _, _ = await get_gallery_info(url)
+        text, _, thumb, gid, token, _, _ = await get_gallery_info(url)
     except:
         results = [
             InlineQueryResultArticle(
@@ -89,6 +89,7 @@ async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
             title="画廊预览",
             caption=text,
             reply_markup=keyboard,
+            parse_mode="HTML",
         )
     ]
 
@@ -102,7 +103,9 @@ async def resolve_gallery_by_url(
     logger.info(f"解析画廊 {url}")
 
     try:
-        text, thumb, gid, token, user_GP_cost, require_GP = await get_gallery_info(url)
+        text, has_spoiler, thumb, gid, token, user_GP_cost, require_GP = (
+            await get_gallery_info(url)
+        )
     except Exception as e:
         await msg.edit_text("❌ 画廊解析失败，请检查链接或稍后再试")
         logger.error(f"画廊 {url} 解析失败：{e}")
@@ -110,26 +113,34 @@ async def resolve_gallery_by_url(
 
     keyboard = [
         [InlineKeyboardButton("🌐 跳转画廊", url=url)],
-        (
+    ]
+    if update.effective_chat.type == "private":
+        keyboard.append(
             [
                 InlineKeyboardButton(
                     "📦 归档下载",
                     callback_data=f"download|{gid}|{token}|{1 if require_GP else 0}|{user_GP_cost}",
                 )
             ]
-            if update.effective_chat.type == "private"
-            else [
+        )
+        has_spoiler = False
+    else:
+        keyboard.append(
+            [
                 InlineKeyboardButton(
                     "🤖 在 Bot 中打开",
                     url=f"https://t.me/{context.application.bot_username}?start={gid}_{token}",
                 )
             ]
-        ),
-    ]
+        )
 
     await msg.delete()
     await update.effective_message.reply_photo(
-        photo=thumb, caption=text, reply_markup=InlineKeyboardMarkup(keyboard)
+        photo=thumb,
+        caption=text,
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        has_spoiler=has_spoiler,
+        parse_mode="HTML",
     )
 
 

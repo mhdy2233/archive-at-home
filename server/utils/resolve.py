@@ -1,6 +1,5 @@
 from collections import defaultdict
 from datetime import datetime
-from html import unescape
 from urllib.parse import urljoin
 
 from loguru import logger
@@ -55,19 +54,20 @@ async def get_gallery_info(url):
     )
 
     text = (
-        f"📌 主标题：{unescape(info.title)}\n"
-        f"📙 副标题：{unescape(info.title_jpn)}\n"
+        f"📌 主标题：{info.title}\n"
+        f"📙 副标题：{info.title_jpn}\n"
         f"📂 类型：{info.category}\n"
-        f"👤 上传者：{info.uploader}\n"
+        f"👤 上传者：<a href='https://e-hentai.org/uploader/{info.uploader}'>{info.uploader}</a>\n"
         f"🕒 上传时间：{datetime.fromtimestamp(float(info.posted)):%Y-%m-%d %H:%M}\n"
         f"📄 页数：{info.filecount}\n"
         f"⭐ 评分：{info.rating}\n\n"
-        f"{tag_text}\n\n"
+        f"<blockquote expandable>{tag_text}</blockquote>\n\n"
         f"💰 归档消耗 GP：{user_GP_cost}"
     )
 
     return (
         text,
+        info.category != "Non-H",
         info.thumb.replace("s.exhentai", "ehgt"),
         info.gid,
         info.token,
