@@ -66,10 +66,7 @@ async def add_client(user_id: int, url: str) -> tuple[bool, str, bool | None]:
 
 async def get_available_clients(require_GP: bool) -> list[Client]:
     """获取可用节点"""
-    clients = await Client.filter(status__in=["正常", "无免费额度"]).select_related(
-        "provider"
-    )
-
+    clients = await Client.filter(status__in=["正常", "无免费额度"])
     if require_GP:
         eligible = [c for c in clients if c.enable_GP_cost]
         random.shuffle(eligible)

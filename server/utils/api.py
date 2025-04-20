@@ -66,7 +66,7 @@ async def process_resolve(user, gid, token):
     if get_current_GP(user) < user_GP_cost:
         return 5, "GP 不足", None
 
-    d_url, _ = await get_download_url(user, gid, token, require_GP > 0)
+    d_url = await get_download_url(user, gid, token, require_GP > 0)
     if d_url:
         await deduct_GP(user, user_GP_cost)
         return 0, "解析成功", d_url

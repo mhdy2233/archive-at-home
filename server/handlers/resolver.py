@@ -98,7 +98,7 @@ async def download(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     logger.info(f"获取 https://e-hentai.org/g/{gid}/{token}/ 下载链接")
 
-    d_url, client = await get_download_url(user, gid, token, require_GP == "1")
+    d_url = await get_download_url(user, gid, token, require_GP == "1")
     if d_url:
         await deduct_GP(user, user_GP_cost)
         keyboard = InlineKeyboardMarkup(
@@ -118,7 +118,7 @@ async def download(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
         await update.effective_message.edit_caption(
-            caption=f"{caption}\n\n✅ 下载链接获取成功\n📡 节点提供者：{client.provider.name}",
+            caption=f"{caption}\n\n✅ 下载链接获取成功",
             reply_markup=keyboard,
         )
     else:

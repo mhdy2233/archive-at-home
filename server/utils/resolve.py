@@ -105,7 +105,7 @@ async def get_download_url(user, gid, token, require_GP):
                 logger.info(
                     f"节点 {client.url} 解析 https://e-hentai.org/g/{gid}/{token}/ 成功"
                 )
-                return data["d_url"], client
+                return data["d_url"]
             error_msg = data.get("msg")
         except Exception as e:
             error_msg = e
@@ -113,4 +113,4 @@ async def get_download_url(user, gid, token, require_GP):
             f"节点 {client.url} 解析 https://e-hentai.org/g/{gid}/{token}/ 失败：{error_msg}"
         )
 
-    return None, None
+    return None
