@@ -1,3 +1,7 @@
+import asyncio
+import time
+from collections import defaultdict
+
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
@@ -6,7 +10,23 @@ from utils.ehArchiveD import GUrl
 from utils.GP_action import checkin, deduct_GP, get_current_GP
 from utils.resolve import ehentai, get_download_url
 
+processing_tasks = {}
+results_cache = defaultdict(dict)
+lock = asyncio.Lock()
+
 app = FastAPI()
+
+
+async def clean_results_cache():
+    now = time.time()
+    keys_to_delete = []
+
+    for key, value in results_cache.items():
+        if not value or value.get("expire_time", 0) < now:
+            keys_to_delete.append(key)
+
+    for key in keys_to_delete:
+        results_cache.pop(key, None)
 
 
 def format_response(code: int, msg: str, data: dict = None):
@@ -35,13 +55,32 @@ async def verify_user(apikey: str):
     return user
 
 
+async def process_resolve(user, gid, token):
+    try:
+        gallery_info = await ehentai.get_archiver_info(GUrl(gid, token))
+        require_GP = await ehentai.get_required_gp(gallery_info)
+        user_GP_cost = int(gallery_info.filesize / 52428.8)
+    except Exception:
+        return 4, "获取画廊信息失败", None
+
+    if get_current_GP(user) < user_GP_cost:
+        return 5, "GP 不足", None
+
+    d_url, _ = await get_download_url(user, gid, token, require_GP > 0)
+    if d_url:
+        await deduct_GP(user, user_GP_cost)
+        return 0, "解析成功", d_url
+    return 6, "解析失败", None
+
+
 @app.post("/resolve")
-async def resolve(request: Request):
+async def handle_resolve(request: Request):
     try:
         data = await request.json()
         apikey = data.get("apikey")
         gid = data.get("gid")
         token = data.get("token")
+        force_resolve = data.get("force_resolve", False)
 
         if not all([apikey, gid, token]):
             return format_response(1, "参数不完整")
@@ -50,23 +89,34 @@ async def resolve(request: Request):
         if isinstance(user, JSONResponse):
             return user
 
+        key = f"{user.id}|{gid}"
+
+        # 使用缓存
+        cache = results_cache.get(key)
+        if cache and cache.get("expire_time", 0) > time.time() and not force_resolve:
+            return format_response(0, "使用缓存记录", {"archive_url": cache["d_url"]})
+
+        task = processing_tasks.get(key)
+        if not task:
+            async with lock:
+                task = processing_tasks.get(key)
+                if not task:
+                    task = asyncio.create_task(process_resolve(user, gid, token))
+                    processing_tasks[key] = task
+
         try:
-            gallery_info = await ehentai.get_archiver_info(GUrl(gid, token))
-            require_GP = await ehentai.get_required_gp(gallery_info)
-            user_GP_cost = int(gallery_info.filesize / 52428.8)
-        except Exception:
-            return format_response(4, "获取画廊信息失败")
+            code, msg, d_url = await task
+            if not d_url:
+                return format_response(code, msg)
 
-        current_GP = get_current_GP(user)
-        if current_GP < user_GP_cost:
-            return format_response(5, "GP 不足")
+            results_cache[key] = {"d_url": d_url, "expire_time": time.time() + 86400}
+            return format_response(code, msg, {"archive_url": d_url})
 
-        d_url, _ = await get_download_url(user, gid, token, require_GP > 0)
-        if not d_url:
-            return format_response(6, "解析失败")
-
-        await deduct_GP(user, user_GP_cost)
-        return format_response(0, "解析成功", {"archive_url": d_url})
+        finally:
+            async with lock:
+                # 确保任务完成后无论成功失败都清理任务记录
+                if processing_tasks.get(key) == task:
+                    del processing_tasks[key]
 
     except Exception as e:
         return handle_exception(e)
