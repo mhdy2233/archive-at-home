@@ -17,7 +17,7 @@ lock = asyncio.Lock()
 app = FastAPI()
 
 
-async def clean_results_cache():
+async def clean_results_cache(_):
     now = time.time()
     keys_to_delete = []
 

@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from loguru import logger
+from tortoise.expressions import Q
 
 from db.db import GPRecord, User
 
@@ -53,3 +54,8 @@ async def deduct_GP(user: User, amount: int):
         record.amount -= deduct_amount
         total_deducted += deduct_amount
         await record.save()
+
+
+async def clean_GP_records(_):
+    now = datetime.now()
+    await GPRecord.filter(Q(expire_time__lte=now) | Q(amount__lte=0)).delete()
