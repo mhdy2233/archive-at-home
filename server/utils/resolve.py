@@ -14,15 +14,15 @@ ehentai = EHentai(cfg["eh_cookie"], cfg["proxy"])
 
 
 async def fetch_tag_map(_):
-    global tag_map
-    tag_map = defaultdict(lambda: {"name": "", "data": {}})
-
     db = (
         await http.get(
             "https://github.com/EhTagTranslation/Database/releases/latest/download/db.text.json",
             follow_redirects=True,
         )
     ).json()
+
+    global tag_map
+    tag_map = defaultdict(lambda: {"name": "", "data": {}})
 
     for entry in db["data"][2:]:
         namespace = entry["namespace"]
@@ -38,19 +38,14 @@ async def get_gallery_info(url):
     require_GP = await ehentai.get_required_gp(info)
     user_GP_cost = int(info.filesize / 52428.8)
 
-    raw_tags = info.tags
-    tags = defaultdict(list)
-    for item in raw_tags:
+    new_tags = defaultdict(list)
+    for item in info.tags:
         ns, tag = item.split(":")
-        tag_info = tag_map.get(ns, {})
-        tag_name = tag_info["data"].get(tag)
-        ns_name = tag_info["name"] or ns
-
-        if tag_name:
-            tags[ns_name].append(f"#{tag_name}")
+        if (ns_info := tag_map.get(ns)) and (tag_name := ns_info["data"].get(tag)):
+            new_tags[ns_info["name"]].append(f"#{tag_name}")
 
     tag_text = "\n".join(
-        f"{ns_name}：{' '.join(tags_list)}" for ns_name, tags_list in tags.items()
+        f"{ns_name}：{' '.join(tags_list)}" for ns_name, tags_list in new_tags.items()
     )
 
     text = (
