@@ -54,7 +54,7 @@ async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     # 正则匹配合法链接（严格格式）
-    pattern = r"^https://e[-x]hentai\.org/g/\d{7}/[a-zA-Z0-9]{10}/?$"
+    pattern = r"^https://e[-x]hentai\.org/g/\d+/[a-zA-Z0-9]{10}/?$"
     match = re.match(pattern, query)
     if not match:
         results = [

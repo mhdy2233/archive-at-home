@@ -59,7 +59,7 @@ async def resolve_gallery_by_url(
 
 async def resolve_gallery(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.effective_message.text
-    url = re.search(r"https://e[-x]hentai\.org/g/\d{7}/[a-zA-Z0-9]{10}", text).group(0)
+    url = re.search(r"https://e[-x]hentai\.org/g/\d+/[a-zA-Z0-9]{10}", text).group(0)
     await resolve_gallery_by_url(update, context, url)
 
 
@@ -132,7 +132,7 @@ async def download(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def register(app):
     app.add_handler(
         MessageHandler(
-            filters.Regex(r"https://e[-x]hentai\.org/g/\d{7}/[a-zA-Z0-9]{10}"),
+            filters.Regex(r"https://e[-x]hentai\.org/g/\d+/[a-zA-Z0-9]{10}"),
             resolve_gallery,
         )
     )
