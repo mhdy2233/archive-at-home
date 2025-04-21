@@ -1,5 +1,5 @@
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 from tortoise import Tortoise, fields
@@ -21,7 +21,7 @@ class GPRecord(Model):
     user = fields.ForeignKeyField("models.User", related_name="GP_records")
     amount = fields.IntField()
     expire_time = fields.DatetimeField(
-        default=lambda: datetime.now() + timedelta(days=7)
+        default=lambda: datetime.now(tz=timezone.utc) + timedelta(days=7)
     )
     source = fields.CharField(max_length=50, default="签到")
 
@@ -45,7 +45,7 @@ class ArchiveHistory(Model):
         null=True,
         on_delete=fields.SET_NULL,
     )
-    time = fields.DatetimeField(default=datetime.now)
+    time = fields.DatetimeField(default=lambda: datetime.now(tz=timezone.utc))
 
 
 # 初始化数据库
