@@ -6,11 +6,12 @@ import httpx
 from loguru import logger
 
 from config.config import config
+from utils.ehentai import get_GP_cost
 
 GP_usage_log = deque()
 
 res = httpx.get("https://e-hentai.org/", proxy=config["proxy"])
-test_url = re.search(r"https://e-hentai\.org/g/[0-9]+/[0-9a-z]+", res.text).group()
+test = re.search(r"https://e-hentai\.org/g/(\d+)/([0-9a-f]{10})", res.text).groups()
 
 
 def is_within_global_gp_limit() -> bool:
@@ -29,10 +30,9 @@ def is_within_global_gp_limit() -> bool:
     return total_used < max_gp
 
 
-async def get_status(ehentai):
+async def get_status():
     try:
-        archiver_info = await ehentai.get_archiver_info(test_url)
-        require_GP = await ehentai.get_required_gp(archiver_info)
+        require_GP = await get_GP_cost(*test)
         result = "无免费额度" if require_GP else "正常"
     except Exception as e:
         logger.error(e)

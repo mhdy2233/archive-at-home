@@ -6,9 +6,9 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from db.db import User
-from utils.ehArchiveD import GUrl
+from utils.ehentai import get_GP_cost
 from utils.GP_action import checkin, deduct_GP, get_current_GP
-from utils.resolve import ehentai, get_download_url
+from utils.resolve import get_download_url
 
 processing_tasks = {}
 results_cache = defaultdict(dict)
@@ -57,16 +57,14 @@ async def verify_user(apikey: str):
 
 async def process_resolve(user, gid, token):
     try:
-        gallery_info = await ehentai.get_archiver_info(GUrl(gid, token))
-        require_GP = await ehentai.get_required_gp(gallery_info)
-        user_GP_cost = int(gallery_info.filesize / 52428.8)
+        user_GP_cost, require_GP = await get_GP_cost(gid, token)
     except Exception:
         return 4, "获取画廊信息失败", None
 
     if get_current_GP(user) < user_GP_cost:
         return 5, "GP 不足", None
 
-    d_url = await get_download_url(user, gid, token, require_GP > 0)
+    d_url = await get_download_url(user, gid, token, require_GP)
     if d_url:
         await deduct_GP(user, user_GP_cost)
         return 0, "解析成功", d_url

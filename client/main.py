@@ -5,12 +5,11 @@ from fastapi.responses import JSONResponse
 from loguru import logger
 
 from config.config import config
-from utils.ehArchiveD import EHentai, GUrl
+from utils.ehentai import get_download_url, get_GP_cost
 from utils.status import GP_usage_log, get_status
 
 logger.add("log.log", encoding="utf-8")
 
-ehentai = EHentai(config["ehentai"]["cookies"], proxy=config["proxy"])
 
 app = FastAPI()
 
@@ -19,40 +18,36 @@ app = FastAPI()
 async def resolve(request: Request):
     try:
         data = await request.json()
-        archiver_info = await ehentai.get_archiver_info(
-            GUrl(data["gid"], data["token"])
-        )
-        require_GP = await ehentai.get_required_gp(archiver_info)
+        gid = data["gid"]
+        token = data["token"]
+        require_GP = await get_GP_cost(gid, token)
         if config["ehentai"]["max_GP_cost"] == 0 and require_GP > 0:
             msg = "Rejected"
             d_url = None
         else:
-            d_url = await ehentai.get_download_url(archiver_info)
-            await ehentai.remove_download_url(archiver_info)
+            d_url = await get_download_url(gid, token)
             msg = "Success"
             if config["ehentai"]["max_GP_cost"] > 0:
                 GP_usage_log.append((time.time(), require_GP))
         logger.info(
-            f"{data['username']} 归档 https://e-hentai.org/g/{data['gid']}/{data['token']}/  需要{require_GP}GP  {msg}"
+            f"{data['username']} 归档 https://e-hentai.org/g/{gid}/{token}/  需要{require_GP} GP  {msg}"
         )
         return JSONResponse(
             content={
                 "msg": msg,
                 "d_url": d_url,
                 "require_GP": require_GP,
-                "status": await get_status(ehentai),
+                "status": await get_status(),
             }
         )
     except Exception as e:
         logger.error(e)
-        return JSONResponse(
-            content={"msg": "Failed", "status": await get_status(ehentai)}
-        )
+        return JSONResponse(content={"msg": "Failed", "status": await get_status()})
 
 
 @app.get("/status")
 async def status():
-    return JSONResponse(content={"status": await get_status(ehentai)})
+    return JSONResponse(content={"status": await get_status()})
 
 
 if __name__ == "__main__":

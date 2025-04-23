@@ -6,7 +6,7 @@ from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
 from tortoise.functions import Count
 
 from db.db import User
-from handlers.resolver import resolve_gallery_by_url
+from handlers.resolver import reply_gallery_info
 from utils.GP_action import checkin, get_current_GP
 
 
@@ -20,8 +20,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         logger.info(f"{user.name}（{user.id}）注册成功")
     if context.args:
         gid, token = context.args[0].split("_")
-        await resolve_gallery_by_url(
-            update, context, f"https://e-hentai.org/g/{gid}/{token}/"
+        await reply_gallery_info(
+            update, context, f"https://e-hentai.org/g/{gid}/{token}/", gid, token
         )
     elif not created:
         await update.effective_message.reply_text("✅ 您已经注册过了~")

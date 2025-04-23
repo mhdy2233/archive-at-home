@@ -54,7 +54,7 @@ async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     # 正则匹配合法链接（严格格式）
-    pattern = r"^https://e[-x]hentai\.org/g/\d+/[a-zA-Z0-9]{10}/?$"
+    pattern = r"^https://e[-x]hentai\.org/g/(\d+)/([0-9a-f]{10})/?$"
     match = re.match(pattern, query)
     if not match:
         results = [
@@ -67,11 +67,11 @@ async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.inline_query.answer(results)
         return
 
-    url = match.group(0)
+    gid, token = match.groups()
 
-    logger.info(f"解析画廊 {url}")
+    logger.info(f"解析画廊 {query}")
     try:
-        text, _, thumb, gid, token, _, _ = await get_gallery_info(url)
+        text, _, thumb, _, _ = await get_gallery_info(gid, token)
     except:
         results = [
             InlineQueryResultArticle(
@@ -86,7 +86,7 @@ async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # 按钮
     keyboard = InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton("🌐 跳转画廊", url=url)],
+            [InlineKeyboardButton("🌐 跳转画廊", url=query)],
             [
                 InlineKeyboardButton(
                     "🤖 在 Bot 中打开",

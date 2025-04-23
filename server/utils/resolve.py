@@ -4,13 +4,10 @@ from urllib.parse import urljoin
 
 from loguru import logger
 
-from config.config import cfg
 from db.db import ArchiveHistory
 from utils.client import get_available_clients
-from utils.ehArchiveD import EHentai
+from utils.ehentai import get_gdata, get_GP_cost
 from utils.http_client import http
-
-ehentai = EHentai(cfg["eh_cookie"], cfg["proxy"])
 
 
 async def fetch_tag_map(_):
@@ -32,14 +29,13 @@ async def fetch_tag_map(_):
         )
 
 
-async def get_gallery_info(url):
+async def get_gallery_info(gid, token):
     """获取画廊基础信息 + 缩略图"""
-    info = await ehentai.get_archiver_info(url)
-    require_GP = await ehentai.get_required_gp(info)
-    user_GP_cost = int(info.filesize / 52428.8)
+    user_GP_cost, require_GP = await get_GP_cost(gid, token)
+    gallery_info = await get_gdata(gid, token)
 
     new_tags = defaultdict(list)
-    for item in info.tags:
+    for item in gallery_info["tags"]:
         ns, tag = item.split(":")
         if (ns_info := tag_map.get(ns)) and (tag_name := ns_info["data"].get(tag)):
             new_tags[ns_info["name"]].append(f"#{tag_name}")
@@ -49,25 +45,23 @@ async def get_gallery_info(url):
     )
 
     text = (
-        f"📌 主标题：{info.title}\n"
-        f"📙 副标题：{info.title_jpn}\n"
-        f"📂 类型：{info.category}\n"
-        f"👤 上传者：<a href='https://e-hentai.org/uploader/{info.uploader}'>{info.uploader}</a>\n"
-        f"🕒 上传时间：{datetime.fromtimestamp(float(info.posted)):%Y-%m-%d %H:%M}\n"
-        f"📄 页数：{info.filecount}\n"
-        f"⭐ 评分：{info.rating}\n\n"
-        f"<blockquote expandable>{tag_text}</blockquote>\n\n"
-        f"💰 归档消耗 GP：{user_GP_cost}"
+        f"📌 主标题：{gallery_info['title']}\n"
+        f"⭐ 评分：{gallery_info['rating']}\n"
+        f"<blockquote expandable>📙 副标题：{gallery_info['title_jpn']}\n"
+        f"📂 类型：{gallery_info['category']}\n"
+        f"👤 上传者：<a href='https://e-hentai.org/uploader/{gallery_info['uploader']}'>{gallery_info['uploader']}</a>\n"
+        f"🕒 上传时间：{datetime.fromtimestamp(float(gallery_info['posted'])):%Y-%m-%d %H:%M}\n"
+        f"📄 页数：{gallery_info['filecount']}\n\n"
+        f"{tag_text}\n\n"
+        f"💰 归档消耗 GP：{user_GP_cost}</blockquote>"
     )
 
     return (
         text,
-        info.category != "Non-H",
-        info.thumb.replace("s.exhentai", "ehgt"),
-        info.gid,
-        info.token,
+        gallery_info["category"] != "Non-H",
+        gallery_info["thumb"].replace("s.exhentai", "ehgt"),
         user_GP_cost,
-        require_GP > 0,
+        require_GP,
     )
 
 

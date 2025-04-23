@@ -9,15 +9,15 @@ from utils.GP_action import deduct_GP, get_current_GP
 from utils.resolve import get_download_url, get_gallery_info
 
 
-async def resolve_gallery_by_url(
-    update: Update, context: ContextTypes.DEFAULT_TYPE, url: str
+async def reply_gallery_info(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, url: str, gid: str, token: str
 ):
     msg = await update.effective_message.reply_text("🔍 正在解析画廊信息...")
     logger.info(f"解析画廊 {url}")
 
     try:
-        text, has_spoiler, thumb, gid, token, user_GP_cost, require_GP = (
-            await get_gallery_info(url)
+        text, has_spoiler, thumb, user_GP_cost, require_GP = await get_gallery_info(
+            gid, token
         )
     except Exception as e:
         await msg.edit_text("❌ 画廊解析失败，请检查链接或稍后再试")
@@ -59,8 +59,10 @@ async def resolve_gallery_by_url(
 
 async def resolve_gallery(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.effective_message.text
-    url = re.search(r"https://e[-x]hentai\.org/g/\d+/[a-zA-Z0-9]{10}", text).group(0)
-    await resolve_gallery_by_url(update, context, url)
+    url, gid, token = re.search(
+        r"https://e[-x]hentai\.org/g/(\d+)/([0-9a-f]{10})", text
+    ).group(0, 1, 2)
+    await reply_gallery_info(update, context, url, gid, token)
 
 
 async def download(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -95,6 +97,7 @@ async def download(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.effective_message.edit_caption(
         caption=f"{caption}\n\n⏳ 正在获取下载链接，请稍等...",
         reply_markup=update.effective_message.reply_markup,
+        parse_mode="HTML",
     )
     logger.info(f"获取 https://e-hentai.org/g/{gid}/{token}/ 下载链接")
 
@@ -120,11 +123,13 @@ async def download(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.effective_message.edit_caption(
             caption=f"{caption}\n\n✅ 下载链接获取成功",
             reply_markup=keyboard,
+            parse_mode="HTML",
         )
     else:
         await update.effective_message.edit_caption(
             caption=f"{caption}\n\n❌ 下载链接获取失败，请稍后再试",
             reply_markup=update.effective_message.reply_markup,
+            parse_mode="HTML",
         )
         logger.error(f"https://e-hentai.org/g/{gid}/{token}/ 下载链接获取失败")
 
@@ -132,7 +137,7 @@ async def download(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def register(app):
     app.add_handler(
         MessageHandler(
-            filters.Regex(r"https://e[-x]hentai\.org/g/\d+/[a-zA-Z0-9]{10}"),
+            filters.Regex(r"https://e[-x]hentai\.org/g/\d+/[0-9a-f]{10}"),
             resolve_gallery,
         )
     )
