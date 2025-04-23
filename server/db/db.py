@@ -8,7 +8,7 @@ from tortoise.models import Model
 
 class User(Model):
     id = fields.IntField(pk=True)
-    name = fields.CharField(max_length=50)
+    name = fields.CharField(max_length=255)
     apikey = fields.UUIDField(default=uuid4)
     group = fields.CharField(max_length=50, default="普通用户")
 

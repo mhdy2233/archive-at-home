@@ -80,7 +80,7 @@ async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 input_message_content=InputTextMessageContent("请检查链接或稍后再试"),
             )
         ]
-        await update.inline_query.answer(results)
+        await update.inline_query.answer(results, cache_time=0)
         return
 
     # 按钮
@@ -90,7 +90,7 @@ async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [
                 InlineKeyboardButton(
                     "🤖 在 Bot 中打开",
-                    url=f"https://t.me/{context.application.bot_username}?start={gid}_{token}",
+                    url=f"https://t.me/{context.application.bot.username}?start={gid}_{token}",
                 )
             ],
         ]
@@ -130,7 +130,7 @@ async def handle_checkin(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [
                 InlineKeyboardButton(
                     "🤖 打开 Bot",
-                    url=f"https://t.me/{context.application.bot_username}?start",
+                    url=f"https://t.me/{context.application.bot.username}?start",
                 )
             ]
         ]

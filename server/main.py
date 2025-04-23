@@ -16,7 +16,6 @@ logger.add("log.log", encoding="utf-8")
 
 
 async def post_init(app):
-    app.bot_username = (await app.bot.get_me()).username
     await app.bot.set_my_commands(BOT_COMMANDS)
 
 

@@ -12,6 +12,14 @@ from utils.GP_action import checkin, get_current_GP
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """处理 /start 注册及跳转解析命令"""
+    if update.effective_chat.type in [
+        "group",
+        "supergroup",
+    ] and not update.effective_message.text.startswith(
+        f"/start@{context.application.bot.username}"
+    ):
+        return
+
     tg_user = update.effective_message.from_user
     user, created = await User.get_or_create(id=tg_user.id, name=tg_user.full_name)
 

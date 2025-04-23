@@ -42,7 +42,7 @@ async def reply_gallery_info(
             [
                 InlineKeyboardButton(
                     "🤖 在 Bot 中打开",
-                    url=f"https://t.me/{context.application.bot_username}?start={gid}_{token}",
+                    url=f"https://t.me/{context.application.bot.username}?start={gid}_{token}",
                 )
             ]
         )
