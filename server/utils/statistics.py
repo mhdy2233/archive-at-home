@@ -10,24 +10,45 @@ from utils.GP_action import get_current_GP
 
 
 async def get_client_statistics(clients=None):
-    clients = clients or await Client.all()
+    collect_abnormal = clients is None
+
+    clients = clients or await Client.all().select_related("provider")
+
     status_labels = ["正常", "无免费额度", "网络异常", "解析功能异常", "停用"]
     stats = defaultdict(int)
+    abnormal_clients = []
 
     for client in clients:
         if client.status in status_labels:
             stats[client.status] += 1
 
-    lines = [
-        "📊 节点状态：",
-        f"    总计：{len(clients)}",
-        *[
-            f"    {status}：{count}"
-            for status in status_labels
-            if (count := stats[status]) > 0
-        ],
+        if collect_abnormal and client.status != "正常":
+            abnormal_clients.append(client)
+
+    # 构建状态摘要
+    status_lines = ["📊 节点状态：", f"<blockquote expandable>    总计：{len(clients)}"]
+
+    status_lines += [
+        f"    {label}：{stats[label]}" for label in status_labels if stats[label] > 0
     ]
-    return "\n".join(lines)
+
+    status_lines.append("</blockquote>")
+    status_str = "\n".join(status_lines)
+
+    # 按需构建异常信息
+    if collect_abnormal and abnormal_clients:
+        abnormal_str = "🚨 异常节点列表：\n<blockquote expandable>"
+        for c in abnormal_clients:
+            abnormal_str += (
+                f"🔹 ID：{c.id}\n"
+                f"    提供者：<a href='tg://user?id={c.provider.id}'>{c.provider.name}</a>\n"
+                f"    状态：{c.status}\n\n"
+            )
+        abnormal_str += "</blockquote>"
+    else:
+        abnormal_str = ""
+
+    return (status_str, abnormal_str) if collect_abnormal else status_str
 
 
 async def get_usage_statistics(clients=None, user=None):
@@ -55,12 +76,14 @@ async def get_usage_statistics(clients=None, user=None):
 
     return (
         "📈 使用统计：\n"
+        "<blockquote expandable>"
         "    过去 24 小时：\n"
         f"        解析次数：{recent_count}\n"
         f"        消耗 GP：{recent_GP}\n"
         "    总计：\n"
         f"        解析次数：{total_count}\n"
         f"        消耗 GP：{total_GP}"
+        "</blockquote>"
     )
 
 

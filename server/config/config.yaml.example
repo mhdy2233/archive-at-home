@@ -2,4 +2,6 @@
 BOT_TOKEN:
 admin:
   - 1234567890
+allowed_group:
+  - -1002386565629
 proxy:

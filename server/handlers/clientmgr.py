@@ -38,7 +38,7 @@ async def clientmgr(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if clients:
         stats_text = await get_client_statistics(clients)
         usage_text = await get_usage_statistics(clients=clients)
-        text = f"{stats_text}\n\n{usage_text}"
+        text = f"{stats_text}{usage_text}"
         keyboard.append(
             [InlineKeyboardButton("🛠 管理节点", callback_data="manage_client")]
         )
@@ -46,7 +46,7 @@ async def clientmgr(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text = "您当前没有节点，请先添加一个节点"
 
     await update.effective_message.reply_text(
-        text, reply_markup=InlineKeyboardMarkup(keyboard)
+        text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML"
     )
 
 
@@ -150,7 +150,9 @@ async def client_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ],
     ]
 
-    await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
+    await query.edit_message_text(
+        text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML"
+    )
 
 
 async def edit_client(update: Update, context: ContextTypes.DEFAULT_TYPE):

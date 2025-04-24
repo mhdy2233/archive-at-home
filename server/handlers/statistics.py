@@ -11,13 +11,13 @@ from utils.statistics import (
 
 
 async def statistics(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = await get_client_statistics()
+    status_str, abnormal_str = await get_client_statistics()
 
-    if (
+    if update.effective_chat.id in cfg["allowed_group"] or (
         update.effective_user.id in cfg["admin"]
         and update.effective_chat.type == "private"
     ):
-        text += f"\n\n{await get_usage_statistics()}"
+        text = f"{await get_usage_statistics()}{status_str}{abnormal_str}"
         keyboard = [
             [InlineKeyboardButton("获取用户列表", callback_data="user_list_file")],
             [
@@ -27,10 +27,10 @@ async def statistics(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ],
         ]
         await update.effective_message.reply_text(
-            text, reply_markup=InlineKeyboardMarkup(keyboard)
+            text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML"
         )
     else:
-        await update.effective_message.reply_text(text)
+        await update.effective_message.reply_text(status_str, parse_mode="HTML")
 
 
 async def user_list_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
