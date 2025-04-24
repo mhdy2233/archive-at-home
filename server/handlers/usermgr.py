@@ -17,6 +17,25 @@ from db.db import GPRecord, User
 from utils.GP_action import get_current_GP
 
 
+async def get_user_by_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    message = update.effective_message
+    if message.reply_to_message:
+        user = (
+            await User.annotate(history_count=Count("archive_histories"))
+            .prefetch_related("GP_records")
+            .get_or_none(id=message.reply_to_message.from_user.id)
+        )
+        if user:
+            markup, text = usermgr_text(user)
+            await context.bot.send_message(
+                message.from_user.id, text, reply_markup=markup
+            )
+        else:
+            await message.reply_text("未找到对应的用户信息")
+    else:
+        await message.reply_text("请使用此命令回复一条消息")
+
+
 async def start_usermgr(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """进入用户管理菜单"""
     if update.effective_user.id not in cfg["admin"]:
@@ -54,18 +73,32 @@ async def handle_user_id_input(update: Update, context: ContextTypes.DEFAULT_TYP
         await message.reply_text("未找到对应的用户信息")
         return ConversationHandler.END
 
-    keyboard = [
-        [InlineKeyboardButton("切换用户组", callback_data=f"set_group|{user.id}")],
-        [InlineKeyboardButton("添加 GP", callback_data=f"add_GP|{user.id}")],
-    ]
-
-    remaining_GP = get_current_GP(user)
-    await message.reply_text(
-        f"管理用户：{user.name}\n用户组：{user.group}\n历史使用次数：{user.history_count}\n剩余 GP：{remaining_GP}",
-        reply_markup=InlineKeyboardMarkup(keyboard),
-    )
+    markup, text = usermgr_text(user)
+    await message.reply_text(text, reply_markup=markup)
 
     return ConversationHandler.END
+
+
+def usermgr_text(user):
+    markup = InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton("切换用户组", callback_data=f"set_group|{user.id}")],
+            [
+                InlineKeyboardButton("添加 GP", callback_data=f"add_GP|{user.id}"),
+                InlineKeyboardButton("清空 GP", callback_data=f"reset_GP|{user.id}"),
+            ],
+        ]
+    )
+
+    remaining_GP = get_current_GP(user)
+
+    text = (
+        f"管理用户：{user.name}\n"
+        f"用户组：{user.group}\n"
+        f"历史使用次数：{user.history_count}\n"
+        f"剩余 GP：{remaining_GP}"
+    )
+    return markup, text
 
 
 async def prompt_add_GP(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -109,6 +142,20 @@ async def handle_GP_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"管理员 {update.effective_user.name} 为用户 {user.name} 添加 {amount} GP"
     )
     return ConversationHandler.END
+
+
+async def handle_reset_GP(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    user_id = query.data.split("|")[1]
+    context.user_data["user_id"] = user_id
+
+    user = await User.get(id=user_id)
+    await user.GP_records.all().delete()
+
+    await query.edit_message_text(f"用户 {user.name} GP 已清空")
+    logger.info(f"管理员 {update.effective_user.name} 清空用户 {user.name} GP")
 
 
 async def cancel_operation(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -182,3 +229,7 @@ def register(app):
     app.add_handler(
         CallbackQueryHandler(handle_group_change, pattern=r"^group\|\d+\|.+$")
     )
+    app.add_handler(
+        CommandHandler("usermgr", get_user_by_reply, filters.ChatType.GROUPS)
+    )
+    app.add_handler(CallbackQueryHandler(handle_reset_GP, pattern=r"^reset_GP\|\d+$"))
