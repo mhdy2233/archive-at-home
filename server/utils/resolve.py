@@ -46,8 +46,12 @@ async def get_gallery_info(gid, token):
 
     text = (
         f"📌 主标题：{gallery_info['title']}\n"
-        f"⭐ 评分：{gallery_info['rating']}\n"
-        f"<blockquote expandable>📙 副标题：{gallery_info['title_jpn']}\n"
+        + (
+            f"⭐ 评分：{gallery_info['rating']}\n"
+            if float(gallery_info["posted"]) < datetime.now().timestamp() - 172800
+            else ""
+        )
+        + f"<blockquote expandable>📙 副标题：{gallery_info['title_jpn']}\n"
         f"📂 类型：{gallery_info['category']}\n"
         f"👤 上传者：<a href='https://e-hentai.org/uploader/{gallery_info['uploader']}'>{gallery_info['uploader']}</a>\n"
         f"🕒 上传时间：{datetime.fromtimestamp(float(gallery_info['posted'])):%Y-%m-%d %H:%M}\n"
