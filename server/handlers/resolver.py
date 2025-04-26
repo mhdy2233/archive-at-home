@@ -4,6 +4,7 @@ from loguru import logger
 from telegram import CopyTextButton, InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import CallbackQueryHandler, ContextTypes, MessageHandler, filters
 
+from config.config import cfg
 from db.db import User
 from utils.GP_action import deduct_GP, get_current_GP
 from utils.resolve import get_download_url, get_gallery_info
@@ -28,23 +29,23 @@ async def reply_gallery_info(
         [InlineKeyboardButton("🌐 跳转画廊", url=url)],
     ]
     if update.effective_chat.type == "private":
-        keyboard.append(
-            [
-                InlineKeyboardButton(
-                    "📦 归档下载",
-                    callback_data=f"download|{gid}|{token}|{1 if require_GP else 0}|{user_GP_cost}",
-                )
-            ]
-        )
         has_spoiler = False
+        keyboard[0].append(
+            InlineKeyboardButton(
+                "📦 归档下载",
+                callback_data=f"download|{gid}|{token}|{1 if require_GP else 0}|{user_GP_cost}",
+            )
+        )
+        if cfg["AD"]["text"] and cfg["AD"]["url"]:
+            keyboard.append(
+                [InlineKeyboardButton(cfg["AD"]["text"], url=cfg["AD"]["url"])]
+            )
     else:
-        keyboard.append(
-            [
-                InlineKeyboardButton(
-                    "🤖 在 Bot 中打开",
-                    url=f"https://t.me/{context.application.bot.username}?start={gid}_{token}",
-                )
-            ]
+        keyboard[0].append(
+            InlineKeyboardButton(
+                "🤖 在 Bot 中打开",
+                url=f"https://t.me/{context.application.bot.username}?start={gid}_{token}",
+            )
         )
 
     await msg.delete()

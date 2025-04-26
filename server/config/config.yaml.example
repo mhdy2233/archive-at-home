@@ -1,7 +1,10 @@
-﻿eh_cookie: ipb_member_id=xxxxx; ipb_pass_hash=xxxxx; igneous=xxxxx
+﻿proxy:
+eh_cookie: ipb_member_id=xxxxx; ipb_pass_hash=xxxxx; igneous=xxxxx
 BOT_TOKEN:
 admin:
   - 1234567890
 allowed_group:
   - -1002386565629
-proxy:
+AD:
+  text:
+  url:

@@ -86,12 +86,12 @@ async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # 按钮
     keyboard = InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton("🌐 跳转画廊", url=query)],
             [
+                InlineKeyboardButton("🌐 跳转画廊", url=query),
                 InlineKeyboardButton(
                     "🤖 在 Bot 中打开",
                     url=f"https://t.me/{context.application.bot.username}?start={gid}_{token}",
-                )
+                ),
             ],
         ]
     )
