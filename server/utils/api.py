@@ -3,7 +3,7 @@ import time
 from collections import defaultdict
 
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 
 from db.db import User
 from utils.ehentai import get_GP_cost
@@ -155,3 +155,8 @@ async def checkin_request(request: Request):
 
     except Exception as e:
         return handle_exception(e)
+
+
+@app.get("/")
+async def redirect():
+    return RedirectResponse(url="https://t.me/EH_ArBot", status_code=301)

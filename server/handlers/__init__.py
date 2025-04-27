@@ -8,6 +8,7 @@ BOT_COMMANDS = [
     BotCommand("checkin", "签到"),
     BotCommand("myinfo", "我的信息"),
     BotCommand("usermgr", "用户管理"),
+    BotCommand("help", "帮助"),
 ]
 
 

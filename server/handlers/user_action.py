@@ -97,9 +97,14 @@ async def reset_apikey(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("点击这里查看帮助内容：\nhttps://t.me/EH_ArBot/64")
+
+
 def register(app):
     """注册命令处理器"""
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("checkin", handle_checkin))
     app.add_handler(CommandHandler("myinfo", myinfo))
+    app.add_handler(CommandHandler("help", help))
     app.add_handler(CallbackQueryHandler(reset_apikey, pattern=r"^reset_apikey$"))
