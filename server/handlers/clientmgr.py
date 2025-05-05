@@ -22,16 +22,32 @@ async def clientmgr(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "clients__archive_histories"
     )
 
-    if not user:
-        await update.effective_message.reply_text("请先使用 /start 注册")
-        return
-
-    if user.group != "节点提供者":
+    if not user or user.group != "节点提供者":
         await update.effective_message.reply_text(
             "您没有权限执行此命令，请向管理员申请成为节点提供者"
         )
         return
 
+    keyboard, text = await clientmgr_text(user)
+
+    keyboard = (
+        keyboard
+        if update.effective_chat.type == "private"
+        else [
+            [
+                InlineKeyboardButton(
+                    "🛠 管理节点", callback_data=f"clientmgr_private|{user_id}"
+                )
+            ]
+        ]
+    )
+
+    await update.effective_message.reply_text(
+        text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML"
+    )
+
+
+async def clientmgr_text(user):
     clients = user.clients
     keyboard = [[InlineKeyboardButton("➕ 添加节点", callback_data="add_client")]]
 
@@ -44,8 +60,20 @@ async def clientmgr(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
     else:
         text = "您当前没有节点，请先添加一个节点"
+    return keyboard, text
 
-    await update.effective_message.reply_text(
+
+async def clientmgr_private(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    user_id = query.data.split("|")[1]
+    if user_id != str(update.effective_user.id):
+        await query.answer("是你的东西吗？你就点！")
+        return
+    await query.answer()
+    user = await User.get(id=user_id).prefetch_related("clients__archive_histories")
+    keyboard, text = await clientmgr_text(user)
+    await query.delete_message()
+    await update.effective_user.send_message(
         text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML"
     )
 
@@ -233,7 +261,7 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 def register(app):
-    app.add_handler(CommandHandler("clientmgr", clientmgr, filters.ChatType.PRIVATE))
+    app.add_handler(CommandHandler("clientmgr", clientmgr))
 
     add_client_handler = ConversationHandler(
         entry_points=[CallbackQueryHandler(handle_add_client, pattern=r"^add_client$")],
@@ -258,3 +286,6 @@ def register(app):
     )
     app.add_handler(CallbackQueryHandler(client_info, pattern=r"^client\|\d+$"))
     app.add_handler(CallbackQueryHandler(client_list, pattern=r"^manage_client$"))
+    app.add_handler(
+        CallbackQueryHandler(clientmgr_private, pattern=r"^clientmgr_private")
+    )
