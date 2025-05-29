@@ -49,7 +49,7 @@ class ArchiveHistory(Model):
 
 
 # 初始化数据库
-async def init_db(_):
+async def init_db():
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     DB_PATH = os.path.join(BASE_DIR, "bot_data.db")
 
