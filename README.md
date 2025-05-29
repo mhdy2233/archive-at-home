@@ -4,7 +4,7 @@
 
 ### Cloudflare Workers
 
-1. 复制 [_worker.js](https://github.com/taskmgr818/archive-at-home/blob/main/server/_worker.js) 文件中的代码到你的 Workers 控制台代码编辑区  
+1. 复制 [client_worker.js](https://github.com/taskmgr818/archive-at-home/blob/main/client_worker.js) 文件中的代码到你的 Workers 控制台代码编辑区  
 2. 修改代码中的 `COOKIE` 值
 3. 保存并部署
 
