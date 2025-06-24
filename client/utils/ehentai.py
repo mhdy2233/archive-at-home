@@ -57,4 +57,4 @@ async def get_download_url(gid, token):
     if not d_url:
         raise RuntimeError("归档链接获取失败")
     await _archiver(gid, token, {"invalidate_sessions": "1"})
-    return f"{d_url}?start=1"
+    return f"{d_url.removesuffix('?autostart=1')}?start=1"

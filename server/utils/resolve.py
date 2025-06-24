@@ -98,7 +98,7 @@ async def get_download_url(user, gid, token, require_GP):
                 logger.info(
                     f"节点 {client.url} 解析 https://e-hentai.org/g/{gid}/{token}/ 成功"
                 )
-                return data["d_url"]
+                return data["d_url"].replace("?autostart=1", "")
             error_msg = data.get("msg")
         except Exception as e:
             error_msg = e

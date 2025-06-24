@@ -125,7 +125,7 @@ async function getDownloadUrl(gid, token) {
   });
   const text = await res.text();
   const match = text.match(/document\.location = "(.*?)";/);
-  return match ? `${match[1]}?start=1` : null;
+  return match ? `${match[1].replace(/\?autostart=1$/, '')}?start=1` : null;
 }
 
 async function getStatus() {
