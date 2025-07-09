@@ -36,7 +36,9 @@ async def get_gallery_info(gid, token):
 
     new_tags = defaultdict(list)
     for item in gallery_info["tags"]:
-        ns, tag = item.split(":")
+        ns, sep, tag = item.partition(":")
+        if not sep:
+            continue
         if (ns_info := tag_map.get(ns)) and (tag_name := ns_info["data"].get(tag)):
             new_tags[ns_info["name"]].append(f"#{tag_name}")
 
