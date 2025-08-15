@@ -41,7 +41,11 @@ async def handle_checkin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         id=update.effective_message.from_user.id
     ).prefetch_related("GP_records")
     if not user:
-        await update.effective_message.reply_text("请先使用 /start 注册")
+        await update.effective_message.reply_text(
+            "请先私聊本 Bot 以注册"
+            if update.effective_chat.type in ["group", "supergroup"]
+            else "请先使用 /start 注册"
+        )
         return
 
     amount, balance = await checkin(user)
@@ -65,7 +69,11 @@ async def myinfo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         .get_or_none(id=update.effective_message.from_user.id)
     )
     if not user:
-        await update.effective_message.reply_text("请先使用 /start 注册")
+        await update.effective_message.reply_text(
+            "请先私聊本 Bot 以注册"
+            if update.effective_chat.type in ["group", "supergroup"]
+            else "请先使用 /start 注册"
+        )
         return
 
     current_GP = get_current_GP(user)

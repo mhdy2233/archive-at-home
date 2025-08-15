@@ -22,7 +22,7 @@ from utils.resolve import get_gallery_info
 async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.inline_query.query.strip()
 
-    button = InlineQueryResultsButton(text="到bot查看更多信息", start_parameter="start")
+    button = InlineQueryResultsButton(text="到Bot查看更多信息", start_parameter="start")
 
     # 没输入时提示
     if not query:
