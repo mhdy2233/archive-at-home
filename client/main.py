@@ -26,9 +26,10 @@ async def resolve(request: Request):
             d_url = None
         else:
             d_url = await get_download_url(gid, token)
-            msg = "Success"
-            if config["ehentai"]["max_GP_cost"] > 0:
-                GP_usage_log.append((time.time(), require_GP))
+            if d_url['code'] == 200:
+                msg = "Success"
+                if config["ehentai"]["max_GP_cost"] > 0:
+                    GP_usage_log.append((time.time(), require_GP))
         logger.info(
             f"{data['username']} 归档 https://e-hentai.org/g/{gid}/{token}/  需要{require_GP} GP  {msg}"
         )
