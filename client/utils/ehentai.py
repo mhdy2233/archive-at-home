@@ -53,6 +53,8 @@ async def get_download_url(gid, token):
             "dlcheck": "Download+Original+Archive",
         },
     )
+    if response == "You do not have enough funds to download this archive. Obtain some Credits or GP and try again.":
+        raise RuntimeError("GP不足")
     d_url = re.search(r'document\.location = "(.*?)";', response, re.DOTALL).group(1)
     if not d_url:
         raise RuntimeError("归档链接获取失败")
