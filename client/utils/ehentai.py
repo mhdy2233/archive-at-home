@@ -2,6 +2,8 @@ import re
 
 import httpx
 
+from bs4 import BeautifulSoup
+
 from config.config import config
 
 http = httpx.AsyncClient(proxy=config["proxy"])
@@ -33,7 +35,12 @@ async def _archiver(gid, token, data=None):
     response = await http.post(url, headers=headers, data=data)
     return response.text
 
-
+async def get_GP_now():
+    url = 'https://e-hentai.org/archiver.php?gid=3525624&token=873f82e4bd'
+    response = await http.get(url, headers=headers)
+    soup = BeautifulSoup(response.text, 'html.parser')
+    a = soup.find
+    
 async def get_GP_cost(gid, token):
     response = await _archiver(gid, token)
     original_div = re.search(r"float:left.*float:right", response, re.DOTALL).group()
