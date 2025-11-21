@@ -20,7 +20,7 @@ async def resolve(request: Request):
         data = await request.json()
         gid = data["gid"]
         token = data["token"]
-        image_quality = data['image_quality']
+        image_quality = data["image_quality"]
         require_GP = int(await get_GP_cost(gid, token, image_quality))
         if config["ehentai"]["max_GP_cost"] == 0 and require_GP > 0:
             msg = "Rejected"

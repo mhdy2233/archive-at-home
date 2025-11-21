@@ -2,8 +2,9 @@ import re
 
 import httpx
 from bs4 import BeautifulSoup
-from config.config import config
 from loguru import logger
+
+from config.config import config
 
 http = httpx.AsyncClient(proxy=config["proxy"])
 

@@ -1,10 +1,10 @@
 import asyncio
 import random
 from urllib.parse import urljoin
-from tortoise.queryset import Q
 
 from loguru import logger
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from tortoise.queryset import Q
 
 from db.db import Client, User
 from utils.http_client import http
@@ -32,19 +32,19 @@ async def refresh_client_status(client: Client, app=None) -> tuple[str, bool | N
     else:
         if status["EX"] != "EX":
             client.status = "无法访问ex站点! "
-        elif not status['Free'] and not enable_GP_cost:
+        elif not status["Free"] and not enable_GP_cost:
             client.status = "配额不足! "
         else:
-            if status['GP'] and status['Credits']:
-                if int(status['GP']) < 50000 and int(status['Credits']) < 10000:
+            if status["GP"] and status["Credits"]:
+                if int(status["GP"]) < 50000 and int(status["Credits"]) < 10000:
                     client.status = "GP和C不足! "
             else:
                 client.status = "无法获得GP和C! "
-        client.EX = status['EX']
-        client.Free = status['Free']
-        client.GP = status['GP']
-        client.Credits = status['Credits']
-        if "http" in status['EX'] and app:
+        client.EX = status["EX"]
+        client.Free = status["Free"]
+        client.GP = status["GP"]
+        client.Credits = status["Credits"]
+        if "http" in status["EX"] and app:
             text = f"节点异常\nURL：{client.url}\n状态：{status['EX']}"
             keyboard = [
                 [InlineKeyboardButton("管理节点", callback_data=f"client|{client.id}")]
@@ -77,10 +77,10 @@ async def add_client(user_id: int, url: str) -> tuple[bool, str, bool | None]:
         url=url,
         status="正常",
         enable_GP_cost=enable_GP_cost,
-        EX = status['EX'],
-        Free = status['Free'],
-        GP = status['GP'],
-        Credits = status['Credits'],
+        EX=status["EX"],
+        Free=status["Free"],
+        GP=status["GP"],
+        Credits=status["Credits"],
     )
     return True, status, enable_GP_cost
 

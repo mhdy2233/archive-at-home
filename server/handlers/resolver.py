@@ -17,9 +17,7 @@ async def reply_gallery_info(
     logger.info(f"解析画廊 {url}")
 
     try:
-        text, has_spoiler, thumb, require_GP = await get_gallery_info(
-            gid, token
-        )
+        text, has_spoiler, thumb, require_GP = await get_gallery_info(gid, token)
     except Exception as e:
         await msg.edit_text("❌ 画廊解析失败，请检查链接或稍后再试")
         logger.error(f"画廊 {url} 解析失败：{e}")
@@ -31,13 +29,16 @@ async def reply_gallery_info(
     if update.effective_chat.type == "private":
         has_spoiler = False
         keyboard.append(
-            [InlineKeyboardButton(
-                "📦 原图归档下载",
-                callback_data=f"download|{gid}|{token}|org|{require_GP['org']}",
-            ), InlineKeyboardButton(
-                "📦 重采样归档下载",
-                callback_data=f"download|{gid}|{token}|res|{require_GP['res']}",
-            )]
+            [
+                InlineKeyboardButton(
+                    "📦 原图归档下载",
+                    callback_data=f"download|{gid}|{token}|org|{require_GP['org']}",
+                ),
+                InlineKeyboardButton(
+                    "📦 重采样归档下载",
+                    callback_data=f"download|{gid}|{token}|res|{require_GP['res']}",
+                ),
+            ]
         )
         if cfg["AD"]["text"] and cfg["AD"]["url"]:
             keyboard.append(

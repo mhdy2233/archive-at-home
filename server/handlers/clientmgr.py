@@ -131,7 +131,7 @@ async def client_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = []
 
     for idx, client in enumerate(clients, start=1):
-        text_lines.append(  
+        text_lines.append(
             f"🔹 节点 {idx}:\n    🌐 URL：{client.url}\n    📡 状态：{client.status}"
         )
         keyboard.append(

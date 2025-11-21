@@ -2,8 +2,9 @@ from collections import defaultdict
 from datetime import datetime
 from urllib.parse import urljoin
 
-from db.db import ArchiveHistory
 from loguru import logger
+
+from db.db import ArchiveHistory
 from utils.client import get_available_clients
 from utils.ehentai import get_gdata, get_GP_cost
 from utils.http_client import http
