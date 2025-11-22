@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from db.db import User
 from utils.ehentai import get_GP_cost
 from utils.GP_action import checkin, deduct_GP, get_current_GP
-from utils.resolve import get_download_url
+from utils.resolve import get_download_url, get_gallery_info
 
 processing_tasks = {}
 results_cache = defaultdict(dict)
@@ -58,7 +58,8 @@ async def verify_user(apikey: str):
 async def process_resolve(user, gid, token, image_quality):
     try:
         require_GP = await get_GP_cost(gid, token)
-    except Exception:
+        _, _, _, _, timeout = await get_gallery_info(gid, token)
+    except:
         return 4, "获取画廊信息失败", None, None
 
     if (
@@ -78,7 +79,9 @@ async def process_resolve(user, gid, token, image_quality):
         return 5, "GP 不足", None, selected_cost
 
     # 获取下载链接
-    d_url = await get_download_url(user, gid, token, image_quality, int(selected_cost))
+    d_url = await get_download_url(
+        user, gid, token, image_quality, int(selected_cost), timeout
+    )
     if d_url:
         await deduct_GP(user, int(selected_cost))
         return 0, "解析成功", d_url, selected_cost
