@@ -197,7 +197,7 @@ async def edit_client(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text = (
             f"🔄 已刷新节点状态\n"
             f"状态: {client.status}"
-            f"站点: {client.EX}， 免费配额: {'充足' if client.Free == 1 else '不足'}\n"
+            f"站点: {client.EX}， 免费配额: {'充足' if str(client.Free) == '1' else '不足'}\n"
             f"Ⓖ GP: {client.GP}， Ⓒ Credits: {client.Credits}\n"
             f"💸 允许 GP 消耗：{'是 ✅' if client.enable_GP_cost else '否 ❌'}\n\n"
         )

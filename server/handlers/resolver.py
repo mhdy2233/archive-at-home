@@ -17,7 +17,9 @@ async def reply_gallery_info(
     logger.info(f"解析画廊 {url}")
 
     try:
-        text, has_spoiler, thumb, require_GP, timeout = await get_gallery_info(gid, token)
+        text, has_spoiler, thumb, require_GP, timeout = await get_gallery_info(
+            gid, token
+        )
     except Exception as e:
         await msg.edit_text("❌ 画廊解析失败，请检查链接或稍后再试")
         logger.error(f"画廊 {url} 解析失败：{e}")
@@ -105,7 +107,9 @@ async def download(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     logger.info(f"获取 https://e-hentai.org/g/{gid}/{token}/ 下载链接")
 
-    d_url = await get_download_url(user, gid, token, image_quality, int(require_GP), timeout)
+    d_url = await get_download_url(
+        user, gid, token, image_quality, int(require_GP), timeout
+    )
     if d_url:
         await deduct_GP(user, int(require_GP))
         keyboard = InlineKeyboardMarkup(

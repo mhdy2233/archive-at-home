@@ -4,7 +4,6 @@ from urllib.parse import urljoin
 
 from loguru import logger
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-from tortoise.queryset import Q
 
 from db.db import Client, User
 from utils.http_client import http
@@ -21,7 +20,7 @@ async def fetch_status(url: str) -> tuple[str, bool | None]:
         return "网络异常", None
 
 
-async def refresh_client_status(client: Client, app=None) -> tuple[str, bool | None]:
+async def refresh_client_status(client: Client, app=None) -> None:
     """刷新单个节点状态"""
     status, enable_GP_cost = await fetch_status(client.url)
     if enable_GP_cost is not None:
@@ -60,8 +59,6 @@ async def refresh_client_status(client: Client, app=None) -> tuple[str, bool | N
             )
     await client.save()
 
-    return client.enable_GP_cost
-
 
 async def refresh_all_clients(app=None):
     """刷新所有节点状态"""
@@ -94,7 +91,7 @@ async def get_available_clients(require_GP: int, timeout: int) -> list[Client]:
     clients = []
     c = await Client.all()
     for x in c:
-        if x.enable_GP_cost == 0 and x.Free == 0:
+        if x.enable_GP_cost == 0 and str(x.Free) == "0":
             continue
         if timeout == 1 and x.enable_GP_cost == 0:
             continue
