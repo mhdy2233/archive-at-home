@@ -55,7 +55,7 @@ async def verify_user(apikey: str):
     return user
 
 
-async def process_resolve(user, gid, token, image_quality):
+async def process_resolve(user, gid, token, image_quality, timeout):
     try:
         require_GP = await get_GP_cost(gid, token)
     except Exception:
