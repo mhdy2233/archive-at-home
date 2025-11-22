@@ -78,7 +78,8 @@ async def process_resolve(user, gid, token, image_quality):
         return 5, "GP 不足", None, selected_cost
 
     # 获取下载链接
-    d_url = await get_download_url(user, gid, token, image_quality, int(selected_cost))
+    d_url = await get_download_url(user, gid, token, image_quality, int(selected_cost), timeout
+                                  )
     if d_url:
         await deduct_GP(user, int(selected_cost))
         return 0, "解析成功", d_url, selected_cost
@@ -93,6 +94,7 @@ async def handle_resolve(request: Request):
         gid = data.get("gid")
         token = data.get("token")
         image_quality = data.get("image_quality", "org")  # 可选参数
+        timeout = data.get("timeout", 1)
         force_resolve = data.get("force_resolve", False)
 
         if not all([apikey, gid, token]):
@@ -119,7 +121,7 @@ async def handle_resolve(request: Request):
                 task = processing_tasks.get(key)
                 if not task:
                     task = asyncio.create_task(
-                        process_resolve(user, gid, token, image_quality)
+                        process_resolve(user, gid, token, image_quality, timeout)
                     )
                     processing_tasks[key] = task
 
