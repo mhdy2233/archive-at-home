@@ -1,6 +1,7 @@
 import asyncio
 import time
 from collections import defaultdict
+import traceback
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, RedirectResponse
@@ -58,8 +59,7 @@ async def verify_user(apikey: str):
 async def process_resolve(user, gid, token, image_quality):
     try:
         require_GP = await get_GP_cost(gid, token)
-        _, _, _, _, timeout = await get_gallery_info(gid, token)
-    except:
+    except Exception:
         return 4, "获取画廊信息失败", None, None
 
     if (
@@ -79,10 +79,10 @@ async def process_resolve(user, gid, token, image_quality):
         return 5, "GP 不足", None, selected_cost
 
     # 获取下载链接
-    d_url = await get_download_url(
-        user, gid, token, image_quality, int(selected_cost), timeout
-    )
+    _, _, _, _, timeout = await get_gallery_info(gid, token)
+    d_url = await get_download_url(user, gid, token, image_quality, int(selected_cost), timeout)
     if d_url:
+        d_url = d_url + "0?start=1" if image_quality == "org" else d_url + "1?start=1"
         await deduct_GP(user, int(selected_cost))
         return 0, "解析成功", d_url, selected_cost
     return 6, "解析失败", None, selected_cost
@@ -97,7 +97,6 @@ async def handle_resolve(request: Request):
         token = data.get("token")
         image_quality = data.get("image_quality", "org")  # 可选参数
         force_resolve = data.get("force_resolve", False)
-
         if not all([apikey, gid, token]):
             return format_response(1, "参数不完整")
 
@@ -150,6 +149,7 @@ async def handle_resolve(request: Request):
                     del processing_tasks[key]
 
     except Exception as e:
+        traceback.print_exc()
         return handle_exception(e)
 
 

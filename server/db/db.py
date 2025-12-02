@@ -1,4 +1,4 @@
-import os
+import os, aiosqlite
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
@@ -15,6 +15,7 @@ class User(Model):
     GP_records = fields.ReverseRelation["GPRecord"]
     clients = fields.ReverseRelation["Client"]
     archive_histories = fields.ReverseRelation["ArchiveHistory"]
+    previews = fields.ReverseRelation["Preview"]
 
 
 class GPRecord(Model):
@@ -52,11 +53,21 @@ class ArchiveHistory(Model):
     )
     time = fields.DatetimeField(default=lambda: datetime.now(tz=timezone.utc))
 
+class Preview(Model):
+    user = fields.ForeignKeyField("models.User", related_name="previeew")
+    gid = fields.CharField(max_length=20)
+    token = fields.CharField(max_length=20)
+    ph_url = fields.CharField(max_length=255)
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(BASE_DIR, "bot_data.db")
+
+async def checkpoint_db():
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("PRAGMA wal_checkpoint(FULL);")
+        await db.commit()
 
 # 初始化数据库
 async def init_db():
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    DB_PATH = os.path.join(BASE_DIR, "bot_data.db")
-
     await Tortoise.init(db_url=f"sqlite://{DB_PATH}", modules={"models": [__name__]})
     await Tortoise.generate_schemas()

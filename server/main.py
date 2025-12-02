@@ -1,28 +1,30 @@
-import threading
+import threading, asyncio
 
 import uvicorn
 from loguru import logger
-from telegram.ext import Application
+from telegram.ext import Application, JobQueue
 
 from config.config import cfg
-from db.db import init_db
+from db.db import init_db, checkpoint_db
 from handlers import BOT_COMMANDS, register_all_handlers
 from utils.api import clean_results_cache
 from utils.client import refresh_all_clients
 from utils.GP_action import clean_GP_records
 from utils.resolve import fetch_tag_map
+from utils.preview import preview_start
 
 logger.add("log.log", encoding="utf-8")
-
 
 async def post_init(app):
     await init_db()
     await app.bot.set_my_commands(BOT_COMMANDS)
+    asyncio.create_task(preview_start())
 
 
 telegram_app = (
     Application.builder()
     .token(cfg["BOT_TOKEN"])
+    .job_queue(JobQueue())
     .post_init(post_init)
     .proxy(cfg["proxy"])
     .build()
@@ -33,7 +35,7 @@ telegram_app.job_queue.run_repeating(fetch_tag_map, interval=86400, first=5)
 telegram_app.job_queue.run_repeating(refresh_all_clients, interval=3600, first=10)
 telegram_app.job_queue.run_repeating(clean_results_cache, interval=86400)
 telegram_app.job_queue.run_repeating(clean_GP_records, interval=86400)
-
+telegram_app.job_queue.run_repeating(checkpoint_db, interval=300)
 
 # 启动 FastAPI 的线程
 def start_fastapi():

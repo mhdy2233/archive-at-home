@@ -1,10 +1,22 @@
-﻿proxy:
-eh_cookie: ipb_member_id=xxxxx; ipb_pass_hash=xxxxx; igneous=xxxxx
-BOT_TOKEN:
+﻿eh_cookie: ipb_member_id=xxx; ipb_pass_hash=xxx; igneous=xxx
+BOT_TOKEN: xxx
 admin:
-  - 1234567890
+  - xxx
 allowed_group:
-  - -1002386565629
+  - -100xxx
+
 AD:
-  text:
-  url:
+  text: 还在为没有里站号而烦恼吗?点击进入垃圾小店
+  url: https://shop.mhdy.net
+
+preview_download_thread: 4  # 预览生成时下载线程
+ph_token: xxx  # telegraph token
+author_name: EH_Ar_Bot
+author_url: https://t.me/EH_ArBot
+
+download_folder: /download  # 下载缓存目录(末尾不加/, /做开始)
+temp_folder: /temp  # 缓存目录(末尾不加/, /做开始)
+rclone_upload_remote: "tg_bot:"  # rclone上传的路径
+preview_url: https://pan.mhdy.net/  # 用于组合预览的直链(/结尾)
+
+proxy:

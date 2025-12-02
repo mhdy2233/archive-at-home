@@ -1,14 +1,14 @@
-import re
+import re, html
 
 from loguru import logger
 from telegram import CopyTextButton, InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import CallbackQueryHandler, ContextTypes, MessageHandler, filters
 
 from config.config import cfg
-from db.db import User
+from db.db import User, Preview
 from utils.GP_action import deduct_GP, get_current_GP
 from utils.resolve import get_download_url, get_gallery_info
-
+from utils.preview import task_list
 
 async def reply_gallery_info(
     update: Update, context: ContextTypes.DEFAULT_TYPE, url: str, gid: str, token: str
@@ -30,18 +30,29 @@ async def reply_gallery_info(
     ]
     if update.effective_chat.type == "private":
         has_spoiler = False
-        keyboard.append(
-            [
+        if str(require_GP['org']) != "None":
+            keyboard.append(
+                [
+                    InlineKeyboardButton(
+                        "📦 原图归档下载",
+                        callback_data=f"download|{gid}|{token}|org|{require_GP['org']}|{timeout}",
+                    ),
+                ]
+            )
+            if str(require_GP['res']) != "None":
+                keyboard[1].append(
+                    InlineKeyboardButton(
+                            "📦 重采样归档下载",
+                            callback_data=f"download|{gid}|{token}|res|{require_GP['res']}|{timeout}",
+                        ),
+                )
+        else:
+            keyboard[0].append(
                 InlineKeyboardButton(
-                    "📦 原图归档下载",
-                    callback_data=f"download|{gid}|{token}|org|{require_GP['org']}|{timeout}",
-                ),
-                InlineKeyboardButton(
-                    "📦 重采样归档下载",
-                    callback_data=f"download|{gid}|{token}|res|{require_GP['res']}|{timeout}",
-                ),
-            ]
-        )
+                        "📦 不支持归档", url=url
+                    ),
+            )
+        keyboard[1].append(InlineKeyboardButton("生成预览(实验性)", callback_data=f"preview|{gid}|{token}|{require_GP['pre']}|{timeout}"))
         if cfg["AD"]["text"] and cfg["AD"]["url"]:
             keyboard.append(
                 [InlineKeyboardButton(cfg["AD"]["text"], url=cfg["AD"]["url"])]
@@ -99,9 +110,8 @@ async def download(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "",
         update.effective_message.caption,
     )
-
     await update.effective_message.edit_caption(
-        caption=f"{caption}\n\n⏳ 正在获取下载链接，请稍等...",
+        caption=f"<blockquote expandable>{html.escape(caption)}</blockquote>\n\n⏳ 正在获取下载链接，请稍等...",
         reply_markup=update.effective_message.reply_markup,
         parse_mode="HTML",
     )
@@ -112,25 +122,24 @@ async def download(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     if d_url:
         await deduct_GP(user, int(require_GP))
-        keyboard = InlineKeyboardMarkup(
-            [
+        keyboard = [
                 [
                     InlineKeyboardButton(
                         "🌐 跳转画廊", url=f"https://e-hentai.org/g/{gid}/{token}/"
                     )
                 ],
-                [
-                    InlineKeyboardButton(
-                        "🔗 复制下载链接", copy_text=CopyTextButton(d_url)
-                    ),
-                    InlineKeyboardButton("📥 跳转下载", url=d_url),
-                ],
+                []
             ]
-        )
+
+        if image_quality == "org":
+            keyboard[1].append(InlineKeyboardButton("🔗 复制原图", copy_text=CopyTextButton(d_url+"0?start=1")))
+        keyboard[1].append(InlineKeyboardButton("🔗 复制重采样", copy_text=CopyTextButton(d_url+"1?start=1")))
+        if cfg["AD"]["text"] and cfg["AD"]["url"]:
+            keyboard.append([InlineKeyboardButton(cfg["AD"]["text"], url=cfg["AD"]["url"])])
 
         await update.effective_message.edit_caption(
-            caption=f"<blockquote expandable>{caption}</blockquote>\n\n✅ 下载链接获取成功",
-            reply_markup=keyboard,
+            caption=f"<blockquote expandable>{html.escape(caption)}</blockquote>\n\n✅ 下载链接获取成功",
+            reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="HTML",
         )
     elif d_url == None:
@@ -148,6 +157,59 @@ async def download(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         logger.error(f"https://e-hentai.org/g/{gid}/{token}/ 下载链接获取失败")
 
+async def preview(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    user = await User.get_or_none(id=update.effective_user.id).prefetch_related(
+        "GP_records"
+    )
+
+    if not user:
+        await update.effective_message.reply_text("📌 请先使用 /start 注册")
+        return
+
+    if user.group == "黑名单":
+        await update.effective_message.reply_text("🚫 您已被封禁")
+        return
+
+    _, gid, token, require_GP, timeout = query.data.split("|")
+    ph_url = await Preview.filter(gid=gid).first()
+    if ph_url:
+        await update.effective_message.reply_text(f"已存在预览，本次不消耗GP\n{ph_url.ph_url}")
+    else:
+        current_GP = get_current_GP(user)
+        if current_GP < int(require_GP):
+            await update.effective_message.reply_text(f"⚠️ GP 不足，当前余额：{current_GP}")
+            return
+        
+        for x in task_list:
+            if x['gid'] == gid:
+                mes = await update.effective_message.reply_text(f"已有相同任务, 请稍候重试")
+                return
+
+        mes = await update.effective_message.reply_text(f"正在获取下载链接...")
+        d_url = await get_download_url(
+            user, gid, token, "res", int(require_GP), timeout
+        )
+
+        if d_url:
+            await deduct_GP(user, int(require_GP))
+            task_list.append({
+                "mes": mes,
+                "d_url": d_url,
+                "gid": gid,
+                "token": token,
+                "user": user
+            })
+            await mes.edit_text(f"获取下载链接成功，已加入队列({len(task_list)})...")
+        elif d_url == None:
+            await mes.edit_text("❌ 暂无可用服务器")
+            logger.error(f"https://e-hentai.org/g/{gid}/{token}/ 下载链接获取失败")
+        else:
+            await mes.edit_text("❌ 获取下载链接失败")
+            logger.error(f"https://e-hentai.org/g/{gid}/{token}/ 下载链接获取失败")
+
+
 
 def register(app):
     app.add_handler(
@@ -157,3 +219,4 @@ def register(app):
         )
     )
     app.add_handler(CallbackQueryHandler(download, pattern=r"^download"))
+    app.add_handler(CallbackQueryHandler(preview, pattern=r"^preview"))

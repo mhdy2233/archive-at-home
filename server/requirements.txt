@@ -1,4 +1,4 @@
-beautifulsoup4
+bs4
 httpx
 loguru
 openpyxl
@@ -7,3 +7,7 @@ PyYAML
 tortoise-orm
 fastapi
 uvicorn
+re
+html
+aiohttp
+zipfile

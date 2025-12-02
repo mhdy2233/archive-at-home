@@ -1,4 +1,4 @@
-import re
+import re, math
 
 import httpx
 from bs4 import BeautifulSoup
@@ -66,7 +66,7 @@ async def get_GP_cost(gid, token):
         else:
             raise ValueError(f"Unsupported unit: {unit}")
 
-    require_GP = {"org": None, "res": None}
+    require_GP = {"org": None, "res": None, "pre": None}
     url = f"{base_url}/archiver.php?gid={gid}&token={token}"
     response = await http.post(url, headers=headers)
     soup = BeautifulSoup(response.text, "html.parser")
@@ -76,10 +76,14 @@ async def get_GP_cost(gid, token):
             require_GP["org"], require_GP["res"] = round(
                 float(convert_to_mib(GPs[1].text))
             ), round(float(convert_to_mib(GPs[3].text)))
+            x = int(require_GP['res']) * 1.3
+            require_GP['pre'] = math.ceil(x)
         else:
             require_GP["org"], require_GP["res"] = "".join(
                 [ch for ch in GPs[0].text if ch.isdigit()]
             ), "".join([ch for ch in GPs[2].text if ch.isdigit()])
+            x = int(require_GP['res']) * 1.3
+            require_GP['pre'] = math.ceil(x)
     else:
         if response.url == "https://e-hentai.org/bounce_login.php?b=d&bt=1-4":
             return "服务器cookie异常"

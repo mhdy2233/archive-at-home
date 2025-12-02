@@ -1,6 +1,6 @@
-import time
 from collections import defaultdict
 from datetime import datetime
+import time
 from urllib.parse import urljoin
 
 from loguru import logger
@@ -59,18 +59,18 @@ async def get_gallery_info(gid, token):
         f"👤 上传者：<a href='https://e-hentai.org/uploader/{gallery_info['uploader']}'>{gallery_info['uploader']}</a>\n"
         f"🕒 上传时间：{datetime.fromtimestamp(float(gallery_info['posted'])):%Y-%m-%d %H:%M}\n"
         f"📄 页数：{gallery_info['filecount']}\n\n"
-        f"{tag_text}\n\n"
-        f"💰 归档消耗 GP：原图({require_GP['org']}) 重采样({require_GP['res']})</blockquote>"
+        f"{tag_text}</blockquote>\n"
+        f"💰 归档消耗 GP：原图({require_GP['org']}) 重采样({require_GP['res']}) 预览({require_GP['pre']})"
     )
 
-    posted_ts = float(gallery_info["posted"])
+    posted_ts = float(gallery_info['posted'])
     now_ts = time.time()
     return (
         text,
         gallery_info["category"] != "Non-H",
         gallery_info["thumb"].replace("s.exhentai", "ehgt"),
         require_GP,
-        1 if now_ts - posted_ts > 365 * 24 * 3600 else 0,
+        1 if now_ts - posted_ts > 365 * 24 * 3600 else 0
     )
 
 
@@ -114,7 +114,7 @@ async def get_download_url(user, gid, token, image_quality, require_GP, timeout)
                 logger.info(
                     f"节点 {client.url} 解析 https://e-hentai.org/g/{gid}/{token}/ 成功"
                 )
-                return data["d_url"].replace("?autostart=1", "")
+                return data["d_url"].replace("?autostart=1", "").replace("?start=1", "")[:-1]
             error_msg = data.get("msg")
         except Exception as e:
             client.status = "异常"
