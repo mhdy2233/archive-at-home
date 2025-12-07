@@ -71,6 +71,9 @@ async def process_resolve(user, gid, token, image_quality):
 
     if image_quality not in ("org", "res"):
         return 9, "参数 image_quality 非法", None, None
+    
+    if image_quality == "res" and not require_GP['res']:
+        return 10, "画廊无重采样", None, None
 
     selected_cost = require_GP.get(image_quality) or 0
 

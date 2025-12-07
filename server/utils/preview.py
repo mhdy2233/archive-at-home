@@ -81,23 +81,27 @@ async def monitor_folder(path, stop_event, mes, interval=5):
     :param stop_event: asyncio.Event 用于停止监控
     :param interval: 检查间隔秒数
     """
-    old_count = -1
-
     print(f"开始监控：{path}")
 
     while not stop_event.is_set():
         # 获取文件数量
         try:
-            count = sum(1 for _ in os.scandir(path))
+            count = sum(1 for f in os.listdir(path)if os.path.isfile(os.path.join(path, f)))
         except FileNotFoundError:
             print(f"目录不存在：{path}")
             break
 
-        # 检测变化
-        if count != old_count:
-            old_count = count
         await mes.edit_text(f"剩余上传进度：{count}")
         await asyncio.sleep(interval)
+
+def telegraph_title_length(s):
+    length = 0
+    for ch in s:
+        if ord(ch) < 128:  # ASCII 字符
+            length += 1
+        else:  # 中文 / emoji / 全角
+            length += 2
+    return length
 
 async def get_gallery_images(gid, token, d_url, mes, user):
     res = await http.get(f"https://exhentai.org/g/{gid}/{token}?inline_set=tr_40", follow_redirects=True)
@@ -119,14 +123,23 @@ async def get_gallery_images(gid, token, d_url, mes, user):
                 except Exception as e:
                     return False, e
                 else:
-                    # 自然顺序排序函数
-                    def natural_sort_key(s):
-                        # 分割字符串和数字，数字部分转换为整数
-                        return [int(t) if t.isdigit() else t.lower() for t in re.split(r'(\d+)', s)]
 
                     def natural_sort_key(s):
                         """自然排序的 key 函数，将字符串中的数字单独提取出来排序"""
                         return [int(text) if text.isdigit() else text.lower() for text in re.split(r'(\d+)', s)]
+                    
+                    # 获取文件列表并自然排序
+                    files = sorted(os.listdir(f"{cfg['temp_folder']}/{gid}"), key=natural_sort_key)
+
+                    # 重命名
+                    for idx, filename in enumerate(files, start=1):
+                        old_path = os.path.join(f"{cfg['temp_folder']}/{gid}", filename)
+                        if os.path.isfile(old_path):
+                            ext = os.path.splitext(filename)[1]  # 获取扩展名
+                            new_name = f"{idx:04d}{ext}"        # 生成 0001.jpg 格式
+                            new_path = os.path.join(f"{cfg['temp_folder']}/{gid}", new_name)
+                            os.rename(old_path, new_path)
+                            print(f"{filename} -> {new_name}")
 
                     # 获取所有文件名（不包含子目录）
                     image_names = [f for f in os.listdir(f"{cfg['temp_folder']}/{gid}") if os.path.isfile(os.path.join(f"{cfg['temp_folder']}/{gid}", f))]
@@ -145,7 +158,7 @@ async def get_gallery_images(gid, token, d_url, mes, user):
                         text=True,               # 输出作为字符串
                         check=True               # 检查命令是否成功
                         )
-                        logger.info(f"标准输出{result.stdout}")
+                        # logger.info(f"标准输出{result.stdout}")
                         # 将新链接添加到数据中
                         logger.info(f"标准输出{result.stderr}")
                     except subprocess.CalledProcessError as e:

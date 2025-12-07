@@ -9,6 +9,8 @@ AD:
   text: 还在为没有里站号而烦恼吗?点击进入垃圾小店
   url: https://shop.mhdy.net
 
+help_text: ""   # html格式的消息
+
 preview_download_thread: 4  # 预览生成时下载线程
 ph_token: xxx  # telegraph token
 author_name: EH_Ar_Bot

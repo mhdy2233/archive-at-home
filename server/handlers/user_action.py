@@ -8,7 +8,7 @@ from tortoise.functions import Count
 from db.db import User
 from handlers.resolver import reply_gallery_info
 from utils.GP_action import checkin, get_current_GP
-
+from config.config import cfg
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """处理 /start 注册及跳转解析命令"""
@@ -21,7 +21,19 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
 
     tg_user = update.effective_message.from_user
-    user, created = await User.get_or_create(id=tg_user.id, name=tg_user.full_name)
+    try:
+        user, created = await User.create(id=tg_user.id, name=tg_user.full_name)
+        created = True
+
+    except IntegrityError:
+        # 已存在 → 获取并检查是否需要更新
+        user = await User.get(id=tg_user.id)
+        created = False
+
+        if user.name != tg_user.full_name:
+            user.name = tg_user.full_name
+            await user.save()
+
 
     if created:
         await update.effective_message.reply_text("🎉 欢迎加入，您已成功注册！")
@@ -106,7 +118,7 @@ async def reset_apikey(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("点击这里查看帮助内容：\nhttps://t.me/EH_ArBot/64")
+    await update.message.reply_text(text=(f"<blockquote expandable>{cfg['help_text']}</blockquote>\n本bot基于 https://github.com/mhdy2233/archive-at-home"), parse_mode="HTML")
 
 
 def register(app):
