@@ -2,11 +2,11 @@ import re, httpx
 import aiohttp
 import asyncio
 import os
+import shutil
 import zipfile
 import subprocess
-import shutil
 
-from telegraph import Telegraph
+import telepress
 from bs4 import BeautifulSoup
 from loguru import logger
 
@@ -54,54 +54,9 @@ async def async_multithread_download(url, filename, parts=8):
     else:
         return True
 
-async def telegraph_upload(title, urls, gid):
-    # 1. 创建 telegraph 对象
-    telegraph = Telegraph(access_token=cfg['ph_token'])
-
-    # 2. 创建匿名账号（只需一次）
-    # telegraph.create_account(short_name=USERNAME, author_name=USERNAME, author_url="https://t.me/lajijichang")
-        # 3. 生成内容结构
-    content = []
-
-    # 3.3 插入图集
-    content.extend([{"tag": "img", "attrs": {"src": f"{cfg['preview_url']}{gid}/{u}"}} for u in urls])
-
-    # 3.4 插入广告
-    if cfg['AD']:
-        content.append({"tag": "a", "attrs": {"href": cfg['AD']['url']}, "children": [cfg['AD']['text']]})
-
-    # 4. 创建 Telegraph 页面
-    page = telegraph.create_page(title=title, content=content, author_name=cfg['author_name'], author_url=cfg['author_url'])
-    return 'https://telegra.ph/' + page['path']
-
-async def monitor_folder(path, stop_event, mes, interval=5):
-    """
-    异步监控文件夹内文件数量变化，可随时终止。
-    :param path: 文件夹路径
-    :param stop_event: asyncio.Event 用于停止监控
-    :param interval: 检查间隔秒数
-    """
-    print(f"开始监控：{path}")
-
-    while not stop_event.is_set():
-        # 获取文件数量
-        try:
-            count = sum(1 for f in os.listdir(path)if os.path.isfile(os.path.join(path, f)))
-        except FileNotFoundError:
-            print(f"目录不存在：{path}")
-            break
-
-        await mes.edit_text(f"剩余上传进度：{count}")
-        await asyncio.sleep(interval)
-
-def telegraph_title_length(s):
-    length = 0
-    for ch in s:
-        if ord(ch) < 128:  # ASCII 字符
-            length += 1
-        else:  # 中文 / emoji / 全角
-            length += 2
-    return length
+def natural_sort_key(s):
+    """自然排序的 key 函数，将字符串中的数字单独提取出来排序"""
+    return [int(text) if text.isdigit() else text.lower() for text in re.split(r'(\d+)', s)]
 
 async def get_gallery_images(gid, token, d_url, mes, user):
     res = await http.get(f"https://exhentai.org/g/{gid}/{token}?inline_set=tr_40", follow_redirects=True)
@@ -110,89 +65,105 @@ async def get_gallery_images(gid, token, d_url, mes, user):
             return(False, "请检查画廊是否正确")
         else:
             soup = BeautifulSoup(res.text, 'html.parser')
-            title = soup.find('h1', id='gn').text
+            title_node = soup.find('h1', id='gn')
+            title = title_node.text if title_node else "Unknown Title"
             await mes.edit_text("开始下载...")
             os.makedirs(f"{cfg['download_folder']}", exist_ok=True)
             dow = await async_multithread_download(d_url + "1?start=1", f"{gid}.zip", parts=cfg['preview_download_thread'])
             if dow == True:
-                await mes.edit_text("下载完成，开始解压...")
                 try:
-                    os.makedirs(f"{cfg['temp_folder']}/{gid}", exist_ok=True)
-                    with zipfile.ZipFile(f"{cfg['download_folder']}/{gid}.zip", "r") as zip_ref:
-                        zip_ref.extractall(f"{cfg['temp_folder']}/{gid}")
-                except Exception as e:
-                    return False, e
-                else:
-
-                    def natural_sort_key(s):
-                        """自然排序的 key 函数，将字符串中的数字单独提取出来排序"""
-                        return [int(text) if text.isdigit() else text.lower() for text in re.split(r'(\d+)', s)]
+                    # 获取存储模式: "r2" 或 "telegraph"
+                    storage_mode = cfg.get('storage_mode', 'r2')
                     
-                    # 获取文件列表并自然排序
-                    files = sorted(os.listdir(f"{cfg['temp_folder']}/{gid}"), key=natural_sort_key)
-
-                    # 重命名
-                    for idx, filename in enumerate(files, start=1):
-                        old_path = os.path.join(f"{cfg['temp_folder']}/{gid}", filename)
-                        if os.path.isfile(old_path):
-                            ext = os.path.splitext(filename)[1]  # 获取扩展名
-                            new_name = f"{idx:04d}{ext}"        # 生成 0001.jpg 格式
-                            new_path = os.path.join(f"{cfg['temp_folder']}/{gid}", new_name)
-                            os.rename(old_path, new_path)
-                            print(f"{filename} -> {new_name}")
-
-                    # 获取所有文件名（不包含子目录）
-                    image_names = [f for f in os.listdir(f"{cfg['temp_folder']}/{gid}") if os.path.isfile(os.path.join(f"{cfg['temp_folder']}/{gid}", f))]
-
-                    # 自然排序
-                    image_names.sort(key=natural_sort_key)
-                    print(image_names)
-                    await mes.edit_text("解压完成，开始上传...")
-                    stop_event = asyncio.Event()
-                    task = asyncio.create_task(monitor_folder(f"{cfg['temp_folder']}/{gid}", stop_event, mes))
-                    try:
-                        result = subprocess.run(
-                        ['rclone', 'move', f"{cfg['temp_folder']}/{gid}/", f"{cfg['rclone_upload_remote']}/{gid}", '-P', '--transfers=8'],
-                        stdout=subprocess.PIPE,  # 捕获标准输出
-                        stderr=subprocess.PIPE,  # 捕获错误输出
-                        text=True,               # 输出作为字符串
-                        check=True               # 检查命令是否成功
+                    if storage_mode == 'telegraph':
+                        # Telegraph 直传模式：直接用 zip 文件上传
+                        await mes.edit_text("下载完成，开始上传到 Telegraph...")
+                        
+                        ph_url = await asyncio.to_thread(
+                            telepress.publish,
+                            f"{cfg['download_folder']}/{gid}.zip",
+                            title=title
                         )
-                        # logger.info(f"标准输出{result.stdout}")
-                        # 将新链接添加到数据中
-                        logger.info(f"标准输出{result.stderr}")
-                    except subprocess.CalledProcessError as e:
-                        logger.error(f"程序发生错误{e.stderr}")
-                        return False, e
                     else:
-                        stop_event.set()
-                        ph_url = await telegraph_upload(title=title, urls=image_names, gid=gid)
-                        if ph_url:
-                            await mes.edit_text(f"生成完成预览链接为:\n{ph_url}")
-                            await Preview.create(
-                                user=user,
-                                gid=gid,
-                                token=token,
-                                ph_url=ph_url
-                            )
+                        # R2 模式：解压后上传到 R2
+                        await mes.edit_text("下载完成，开始解压...")
+                        
+                        os.makedirs(f"{cfg['temp_folder']}/{gid}", exist_ok=True)
+                        with zipfile.ZipFile(f"{cfg['download_folder']}/{gid}.zip", "r") as zip_ref:
+                            zip_ref.extractall(f"{cfg['temp_folder']}/{gid}")
+                        
+                        image_names = [f for f in os.listdir(f"{cfg['temp_folder']}/{gid}") 
+                                     if os.path.isfile(os.path.join(f"{cfg['temp_folder']}/{gid}", f))]
+                        image_names.sort(key=natural_sort_key)
+                        
+                        await mes.edit_text("解压完成，开始上传(Rclone)...")
+                        
+                        result = subprocess.run(
+                            ['rclone', 'move', f"{cfg['temp_folder']}/{gid}/", f"{cfg['rclone_upload_remote']}/{gid}", '-P', '--transfers=8'],
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE,
+                            text=True,
+                            check=True
+                        )
+                        
+                        image_urls = [f"{cfg['preview_url']}{gid}/{name}" for name in image_names]
+                        
+                        await mes.edit_text("上传完成，开始生成预览页(TelePress)...")
+                        
+                        publisher = telepress.TelegraphPublisher(token=cfg.get('ph_token'))
+                        ph_url = await asyncio.to_thread(
+                            publisher.publish_optimized_gallery,
+                            image_urls,
+                            title=title
+                        )
+                    
+                    if ph_url:
+                        await mes.edit_text(f"生成完成预览链接为:\n{ph_url}")
+                        await Preview.create(
+                            user=user,
+                            gid=gid,
+                            token=token,
+                            ph_url=ph_url
+                        )
                         return True
-                    finally:
-                        shutil.rmtree(cfg['temp_folder'])
-                        shutil.rmtree(cfg['download_folder'])
+                    else:
+                        await mes.edit_text("生成预览失败")
+                        return False, "生成预览失败"
+                        
+                except Exception as e:
+                    logger.error(f"Error: {e}")
+                    return False, e
+                finally:
+                    # 清理文件
+                    if os.path.exists(f"{cfg['download_folder']}/{gid}.zip"):
+                        os.remove(f"{cfg['download_folder']}/{gid}.zip")
+                    if os.path.exists(f"{cfg['temp_folder']}/{gid}"):
+                        shutil.rmtree(f"{cfg['temp_folder']}/{gid}")
             else:
                 print(dow[1])
+                return False, dow[1]
     else:
         print("400")
+        return False, "无法获取画廊信息"
 
 async def preview_start():
     while True:
         if task_list:
             x = task_list.pop(0)
             task = await get_gallery_images(gid=x['gid'], token=x['token'], mes=x['mes'], d_url=x['d_url'], user=x['user'])
-            if task:
+            if task == True:
                 continue
             else:
-                x['mes'].edit_text(f'错误: \n{task[1]}')
-            for x in task_list:
-                x['mes'].edit_text(f"获取下载链接成功，已加入队列({len(task_list)})...")
+                try:
+                    if isinstance(task, tuple) and len(task) > 1:
+                        await x['mes'].edit_text(f'错误: \n{task[1]}')
+                    else:
+                         await x['mes'].edit_text(f'错误: 未知错误')
+                except:
+                    pass
+            for i, task_item in enumerate(task_list):
+                 try:
+                    await task_item['mes'].edit_text(f"获取下载链接成功，已加入队列({i+1})...")
+                 except:
+                    pass
         await asyncio.sleep(1)

@@ -71,21 +71,20 @@ async def get_GP_cost(gid, token):
     response = await http.post(url, headers=headers)
     soup = BeautifulSoup(response.text, "html.parser")
     GPs = soup.find_all("strong")
-    if not GPs[0]:
+    if GPs:
+        if GPs[2].text == "Free!":
+            require_GP["org"], require_GP["res"] = round(
+                float(convert_to_mib(GPs[1].text))
+            ), round(float(convert_to_mib(GPs[3].text)))
+            x = int(require_GP['res']) * 1.3
+            require_GP['pre'] = math.ceil(x)
+        else:
+            require_GP["org"], require_GP["res"] = "".join(
+                [ch for ch in GPs[0].text if ch.isdigit()]
+            ), "".join([ch for ch in GPs[2].text if ch.isdigit()])
+            x = int(require_GP['res']) * 1.3
+            require_GP['pre'] = math.ceil(x)
+    else:
         if response.url == "https://e-hentai.org/bounce_login.php?b=d&bt=1-4":
             return "服务器cookie异常"
-    for index, x in enumerate(GPs):
-        if x.text == "Free!":
-            if index == 0:
-                require_GP["org"] = round(float(convert_to_mib(GPs[1].text)))
-            elif index == 2:
-                require_GP['res'] = round(float(convert_to_mib(GPs[3].text)))
-        else:
-            if index == 0:
-                require_GP["org"] = "".join([ch for ch in GPs[0].text if ch.isdigit()]) 
-            elif index == 2:
-                require_GP['res'] = "".join([ch for ch in GPs[2].text if ch.isdigit()])
-    if require_GP['res']:
-        x = int(require_GP['res']) * 5
-        require_GP['pre'] = math.ceil(x)
     return require_GP

@@ -1,6 +1,6 @@
 from collections import defaultdict
 from datetime import datetime
-import time, html
+import time
 from urllib.parse import urljoin
 
 from loguru import logger
@@ -40,26 +40,21 @@ async def get_gallery_info(gid, token):
         ns, sep, tag = item.partition(":")
         if not sep:
             continue
-        for attempt in range(2):  # 最多执行两次
-            try:
-                if (ns_info := tag_map.get(ns)) and (tag_name := ns_info["data"].get(tag)):
-                    new_tags[ns_info["name"]].append(f"#{tag_name}")
-            except NameError:
-                await fetch_tag_map()
-            
+        if (ns_info := tag_map.get(ns)) and (tag_name := ns_info["data"].get(tag)):
+            new_tags[ns_info["name"]].append(f"#{tag_name}")
 
     tag_text = "\n".join(
         f"{ns_name}：{' '.join(tags_list)}" for ns_name, tags_list in new_tags.items()
     )
 
     text = (
-        html.escape(f"📌 主标题：{gallery_info['title']}\n")
+        f"📌 主标题：{gallery_info['title']}\n"
         + (
             f"⭐ 评分：{gallery_info['rating']}\n"
             if float(gallery_info["posted"]) < datetime.now().timestamp() - 172800
             else ""
         )
-        + f"<blockquote expandable>📙 副标题：{html.escape(gallery_info['title_jpn'])}\n"
+        + f"<blockquote expandable>📙 副标题：{gallery_info['title_jpn']}\n"
         f"📂 类型：{gallery_info['category']}\n"
         f"👤 上传者：<a href='https://e-hentai.org/uploader/{gallery_info['uploader']}'>{gallery_info['uploader']}</a>\n"
         f"🕒 上传时间：{datetime.fromtimestamp(float(gallery_info['posted'])):%Y-%m-%d %H:%M}\n"
@@ -119,7 +114,7 @@ async def get_download_url(user, gid, token, image_quality, require_GP, timeout)
                 logger.info(
                     f"节点 {client.url} 解析 https://e-hentai.org/g/{gid}/{token}/ 成功"
                 )
-                return data["d_url"].replace("?autostart=1", "").replace("?start=1", "")[:-1]
+                return data["d_url"].replace("?autostart=1", "").replace("?start=1", "")
             error_msg = data.get("msg")
         except Exception as e:
             client.status = "异常"

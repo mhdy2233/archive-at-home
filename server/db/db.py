@@ -60,9 +60,9 @@ class Preview(Model):
     ph_url = fields.CharField(max_length=255)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE_DIR, "bot_data.db")
+DB_PATH = os.getenv("DB_PATH", os.path.join(BASE_DIR, "bot_data.db"))
 
-async def checkpoint_db(x):
+async def checkpoint_db():
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("PRAGMA wal_checkpoint(FULL);")
         await db.commit()

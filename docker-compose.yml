@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  server:
+    build: ./server
+    container_name: archive-at-home-server
+    restart: unless-stopped
+    volumes:
+      - ./server/config/config.yaml:/app/config/config.yaml
+      - ./data/download:/download
+      - ./data/temp:/temp
+      - ./data/rclone:/root/.config/rclone
+      - ./data:/data
+      # 挂载 TelePress 配置文件 (Telegraph 模式需要)
+      - ./data/telepress.json:/root/.telepress.json
+    ports:
+      - "3028:3028"
+    environment:
+      - TZ=Asia/Shanghai
+      - DB_PATH=/data/bot_data.db
+      # TelePress 环境变量配置 (可选，替代 telepress.json)
+      # TELEPRESS_IMAGE_HOST_TYPE=rclone
+      # TELEPRESS_IMAGE_HOST_REMOTE_PATH=r2:archive-gallery
+      # TELEPRESS_IMAGE_HOST_PUBLIC_URL=https://pub-xxx.r2.dev
+
+  client:
+    build: ./client
+    container_name: archive-at-home-client
+    restart: unless-stopped
+    volumes:
+      - ./client/config/config.yaml:/app/config/config.yaml
+    ports:
+      - "4655:4655"
+    environment:
+      - TZ=Asia/Shanghai
