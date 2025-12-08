@@ -132,14 +132,16 @@ async def download(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 []
             ]
 
+        text = f"<blockquote expandable>{html.escape(caption)}</blockquote>\n✅ 下载链接获取成功\n<blockquote expandable>"
         if image_quality == "org":
             keyboard[1].append(InlineKeyboardButton("🔗 复制原图", copy_text=CopyTextButton(d_url+"0?start=1")))
+            text+= f"原图: <code>{d_url}0?start=1</code>\n"
         keyboard[1].append(InlineKeyboardButton("🔗 复制重采样", copy_text=CopyTextButton(d_url+"1?start=1")))
+        text+= f"重采样: <code>{d_url}1?start=1</code></blockquote>"
         if cfg["AD"]["text"] and cfg["AD"]["url"]:
             keyboard.append([InlineKeyboardButton(cfg["AD"]["text"], url=cfg["AD"]["url"])])
-
         await update.effective_message.edit_caption(
-            caption=f"<blockquote expandable>{html.escape(caption)}</blockquote>\n\n✅ 下载链接获取成功",
+            caption=text,
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="HTML",
         )
@@ -185,32 +187,16 @@ async def preview(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         for x in task_list:
             if x['gid'] == gid:
-                mes = await update.effective_message.reply_text(f"已有相同任务, 请稍候重试")
+                mes = await update.effective_message.reply_text(f"已有相同任务, 请稍候重试(队列: {task_list.index({"mes": mes,"gid": gid,"token": token,"user": user})})")
                 return
 
-        mes = await update.effective_message.reply_text(f"正在获取下载链接...")
-        d_url = await get_download_url(
-            user, gid, token, "res", int(require_GP), timeout
-        )
-
-        if d_url:
-            await deduct_GP(user, int(require_GP))
-            task_list.append({
-                "mes": mes,
-                "d_url": d_url,
-                "gid": gid,
-                "token": token,
-                "user": user
-            })
-            await mes.edit_text(f"获取下载链接成功，已加入队列({len(task_list)})...")
-        elif d_url == None:
-            await mes.edit_text("❌ 暂无可用服务器")
-            logger.error(f"https://e-hentai.org/g/{gid}/{token}/ 下载链接获取失败")
-        else:
-            await mes.edit_text("❌ 获取下载链接失败")
-            logger.error(f"https://e-hentai.org/g/{gid}/{token}/ 下载链接获取失败")
-
-
+        mes = await update.effective_message.reply_text(f"已成功加入队列({len(task_list)})...")
+        task_list.append({
+            "mes": mes,
+            "gid": gid,
+            "token": token,
+            "user": user
+        })
 
 def register(app):
     app.add_handler(

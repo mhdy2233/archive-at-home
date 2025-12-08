@@ -1,5 +1,11 @@
 # Archive@Home
-一个基于 Telegram Bot 的分布式解析系统，用于解析 E-Hentai 画廊链接，并返回归档下载链接。
+一个基于 Telegram Bot 的分布式解析系统，用于解析 E-Hentai 画廊链接，并返回归档下载链接。  
+
+当前部署bot为[**归档大王**](https://t.me/EH_AR_bot), bot通知频道 https://t.me/a_eh_arbot  
+
+欢迎加入我们！  
+可以选择贡献cookie，或者自行部署client，在bot通知频道留言加入。  
+**需要里站号欢迎访问 https://shop.mhdy.net?cid=2&mid=3**
 ## 部署节点
 
 ### Cloudflare Workers
