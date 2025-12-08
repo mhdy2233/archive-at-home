@@ -1,13 +1,11 @@
+aiohttp
 bs4
+fastapi
 httpx
 loguru
 openpyxl
 python-telegram-bot[job-queue]
 PyYAML
+telepress[api]
 tortoise-orm
-fastapi
 uvicorn
-re
-html
-aiohttp
-zipfile

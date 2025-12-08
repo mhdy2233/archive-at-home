@@ -29,13 +29,8 @@ class GPRecord(Model):
 
 class Client(Model):
     url = fields.CharField(max_length=255)
-    enable_GP_cost = fields.BooleanField()
     status = fields.CharField(max_length=50)
-    EX = fields.CharField(max_length=255, default="None")
-    Free = fields.CharField(max_length=255, default="None")
-    GP = fields.CharField(max_length=255, default="None")
-    Credits = fields.CharField(max_length=255, default="None")
-
+    enable_GP_cost = fields.BooleanField()
     provider = fields.ForeignKeyField("models.User", related_name="clients")
     archive_histories = fields.ReverseRelation["ArchiveHistory"]
 
@@ -60,9 +55,9 @@ class Preview(Model):
     ph_url = fields.CharField(max_length=255)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE_DIR, "bot_data.db")
+DB_PATH = os.getenv("DB_PATH", os.path.join(BASE_DIR, "bot_data.db"))
 
-async def checkpoint_db(x):
+async def checkpoint_db():
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("PRAGMA wal_checkpoint(FULL);")
         await db.commit()

@@ -14,31 +14,31 @@ async def get_client_statistics(clients=None):
 
     clients = clients or await Client.all().select_related("provider")
 
-    status_labels = {
-        "正常": 0,
-        "配额不足!": 0,
-        "异常": 0,
-        "停用": 0
-    }
+    status_labels = ["正常", "无免费额度", "网络异常", "解析功能异常", "停用"]
+    stats = defaultdict(int)
+    abnormal_clients = []
 
     for client in clients:
         if client.status in status_labels:
-            status_labels[client.status] += 1
-        else:
-            status_labels['异常'] += 1
+            stats[client.status] += 1
+
+        if collect_abnormal and client.status != "正常":
+            abnormal_clients.append(client)
 
     # 构建状态摘要
     status_lines = ["📊 节点状态：", f"<blockquote expandable>    总计：{len(clients)}"]
 
-    status_lines += [f"    {key}: {value}" for key, value in status_labels.items() if value != 0]
+    status_lines += [
+        f"    {label}：{stats[label]}" for label in status_labels if stats[label] > 0
+    ]
 
     status_lines.append("</blockquote>")
     status_str = "\n".join(status_lines)
 
     # 按需构建异常信息
-    if collect_abnormal:
-        abnormal_str = "🚨 节点列表：\n<blockquote expandable>"
-        for c in clients:
+    if collect_abnormal and abnormal_clients:
+        abnormal_str = "🚨 异常节点列表：\n<blockquote expandable>"
+        for c in abnormal_clients:
             abnormal_str += (
                 f"🔹 ID：{c.id}\n"
                 f"    提供者：<a href='tg://user?id={c.provider.id}'>{c.provider.name}</a>\n"

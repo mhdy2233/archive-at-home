@@ -31,7 +31,7 @@ async def reply_gallery_info(
     ]
     if update.effective_chat.type == "private":
         has_spoiler = False
-        if require_GP['org']:
+        if str(require_GP['org']) != "None":
             keyboard.append(
                 [
                     InlineKeyboardButton(
@@ -40,7 +40,7 @@ async def reply_gallery_info(
                     ),
                 ]
             )
-            if require_GP['res']:
+            if str(require_GP['res']) != "None":
                 keyboard[1].append(
                     InlineKeyboardButton(
                             "📦 重采样归档下载",
@@ -53,11 +53,11 @@ async def reply_gallery_info(
                         "📦 不支持归档", url=url
                     ),
             )
-        if require_GP['res']:
-            keyboard[1].append(InlineKeyboardButton("生成预览(实验性)", callback_data=f"preview|{gid}|{token}|{require_GP['pre']}|{timeout}"))
-        if cfg["AD"]["text"] and cfg["AD"]["url"]:
+        keyboard[1].append(InlineKeyboardButton("生成预览(实验性)", callback_data=f"preview|{gid}|{token}|{require_GP['pre']}|{timeout}"))
+        ad_conf = cfg.get("AD", {})
+        if ad_conf.get("text") and ad_conf.get("url"):
             keyboard.append(
-                [InlineKeyboardButton(cfg["AD"]["text"], url=cfg["AD"]["url"])]
+                [InlineKeyboardButton(ad_conf["text"], url=ad_conf["url"])]
             )
     else:
         keyboard[0].append(
@@ -161,23 +161,18 @@ async def download(update: Update, context: ContextTypes.DEFAULT_TYPE):
             text+= f"原图: <code>{d_url}0?start=1</code>\n"
         keyboard[1].append(InlineKeyboardButton("🔗 复制重采样", copy_text=CopyTextButton(d_url+"1?start=1")))
         text+= f"重采样: <code>{d_url}1?start=1</code></blockquote>"
-        if cfg["AD"]["text"] and cfg["AD"]["url"]:
-            keyboard.append([InlineKeyboardButton(cfg["AD"]["text"], url=cfg["AD"]["url"])])
+
+        ad_conf = cfg.get("AD", {})
+        if ad_conf.get("text") and ad_conf.get("url"):
+            keyboard.append([InlineKeyboardButton(ad_conf["text"], url=ad_conf["url"])])
         await update.effective_message.edit_caption(
             caption=text,
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="HTML",
         )
-    elif d_url == None:
-        await update.effective_message.edit_caption(
-            caption=f"{html.escape(caption)}\n\n❌ 暂无可用服务器",
-            reply_markup=update.effective_message.reply_markup,
-            parse_mode="HTML",
-        )
-        logger.error(f"https://e-hentai.org/g/{gid}/{token}/ 下载链接获取失败")
     else:
         await update.effective_message.edit_caption(
-            caption=f"{html.escape(caption)}\n\n❌ 获取下载链接失败",
+            caption=f"{caption}\n\n❌ 下载链接获取失败，请稍后再试",
             reply_markup=update.effective_message.reply_markup,
             parse_mode="HTML",
         )
@@ -210,7 +205,8 @@ async def preview(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         for x in task_list:
             if x['gid'] == gid:
-                mes = await update.effective_message.reply_text(f"已有相同任务, 请稍候重试(队列: {task_list.index({"mes": mes,"gid": gid,"token": token,"user": user})})")
+                task_item = {"mes": mes,"gid": gid,"token": token,"user": user}
+                mes = await update.effective_message.reply_text(f"已有相同任务, 请稍候重试(队列: {task_list.index(task_item)})")
                 return
 
         mes = await update.effective_message.reply_text(f"已成功加入队列({len(task_list)})...")

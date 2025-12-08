@@ -1,6 +1,6 @@
 from collections import defaultdict
 from datetime import datetime
-import time, html
+import time
 from urllib.parse import urljoin
 
 from loguru import logger
@@ -40,13 +40,8 @@ async def get_gallery_info(gid, token, long=False):
         ns, sep, tag = item.partition(":")
         if not sep:
             continue
-        for attempt in range(2):  # 最多执行两次
-            try:
-                if (ns_info := tag_map.get(ns)) and (tag_name := ns_info["data"].get(tag)):
-                    new_tags[ns_info["name"]].append(f"#{tag_name}")
-            except NameError:
-                await fetch_tag_map()
-            
+        if (ns_info := tag_map.get(ns)) and (tag_name := ns_info["data"].get(tag)):
+            new_tags[ns_info["name"]].append(f"#{tag_name}")
 
     tag_text = "\n".join(
         f"{ns_name}：{' '.join(tags_list)}" for ns_name, tags_list in new_tags.items()
@@ -54,13 +49,13 @@ async def get_gallery_info(gid, token, long=False):
     if long:
         tag_text = tag_text[:800]
     text = (
-        html.escape(f"📌 主标题：{gallery_info['title']}\n")
+        f"📌 主标题：{gallery_info['title']}\n"
         + (
             f"⭐ 评分：{gallery_info['rating']}\n"
             if float(gallery_info["posted"]) < datetime.now().timestamp() - 172800
             else ""
         )
-        + f"<blockquote expandable>📙 副标题：{html.escape(gallery_info['title_jpn'])}\n"
+        + f"<blockquote expandable>📙 副标题：{gallery_info['title_jpn']}\n"
         f"📂 类型：{gallery_info['category']}\n"
         f"👤 上传者：<a href='https://e-hentai.org/uploader/{gallery_info['uploader']}'>{gallery_info['uploader']}</a>\n"
         f"🕒 上传时间：{datetime.fromtimestamp(float(gallery_info['posted'])):%Y-%m-%d %H:%M}\n"
@@ -82,9 +77,8 @@ async def get_gallery_info(gid, token, long=False):
 
 async def get_download_url(user, gid, token, image_quality, require_GP, timeout):
     """向可用节点请求下载链接"""
-    clients = await get_available_clients(int(require_GP), timeout)
-    if not clients:
-        return None
+    clients = await get_available_clients()
+
     for client in clients:
         try:
             response = await http.post(
@@ -94,18 +88,15 @@ async def get_download_url(user, gid, token, image_quality, require_GP, timeout)
                     "gid": gid,
                     "token": token,
                     "image_quality": image_quality,
+                    "require_GP": require_GP,
+                    "timeout": timeout
                 },
                 timeout=60,
             )
             data = response.json()
 
             # 更新节点状态
-            status = data["status"]["msg"]
-            if status["Free"] == 0 and client.enable_GP_cost == 0:
-                client.status = "配额不足，停止解析"
-            client.EX = status["EX"]
-            client.GP = status["GP"]
-            client.Credits = status["Credits"]
+            client.status = data["status"]["msg"]
             client.enable_GP_cost = data["status"]["enable_GP_cost"]
             await client.save()
 
@@ -114,18 +105,20 @@ async def get_download_url(user, gid, token, image_quality, require_GP, timeout)
                     user=user,
                     gid=gid,
                     token=token,
-                    GP_cost=data["require_GP"],
+                    GP_cost=require_GP,
                     client=client,
                 )
                 logger.info(
                     f"节点 {client.url} 解析 https://e-hentai.org/g/{gid}/{token}/ 成功"
                 )
-                return data["d_url"].replace("?autostart=1", "").replace("?start=1", "")[:-1]
+                return data["d_url"].replace("?autostart=1", "").replace("?start=1", "")
             error_msg = data.get("msg")
         except Exception as e:
+            error_msg = e
             client.status = "异常"
             await client.save()
-            error_msg = e
         logger.error(
             f"节点 {client.url} 解析 https://e-hentai.org/g/{gid}/{token}/ 失败：{error_msg}"
         )
+
+    return None

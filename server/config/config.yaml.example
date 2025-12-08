@@ -1,24 +1,39 @@
-﻿eh_cookie: ipb_member_id=xxx; ipb_pass_hash=xxx; igneous=xxx
+﻿# Telegram Bot
 BOT_TOKEN: xxx
 admin:
-  - xxx
+  - xxx  # 管理员 User ID
 allowed_group:
-  - -100xxx
+  - -100xxx  # 群组 ID
 
-AD:
-  text: 还在为没有里站号而烦恼吗?点击进入垃圾小店
-  url: https://shop.mhdy.net
+# E-Hentai
+eh_cookie: ipb_member_id=xxx; ipb_pass_hash=xxx; igneous=xxx
 
-help_text: ""   # html格式的消息
-
-preview_download_thread: 4  # 预览生成时下载线程
-ph_token: xxx  # telegraph token
-author_name: EH_Ar_Bot
+# Telegraph 预览 (ph_token 留空自动生成)
+ph_token:
+author_name: Archive@Home
 author_url: https://t.me/EH_ArBot
 
-download_folder: /download  # 下载缓存目录(末尾不加/, /做开始)
-temp_folder: /temp  # 缓存目录(末尾不加/, /做开始)
-rclone_upload_remote: "tg_bot:"  # rclone上传的路径
-preview_url: https://pan.mhdy.net/  # 用于组合预览的直链(/结尾)
+# 存储模式: "r2" 或 "telegraph"
+# r2: 图片上传到 R2，直接返回下载链接 (需配置 Rclone)
+# telegraph: 生成 Telegraph 文章，需配置 TelePress 使用外部图床 (支持 Imgur/R2/Rclone 等)
+storage_mode: r2
 
-proxy:
+# R2 模式配置 (storage_mode: r2 时需要)
+download_folder: /download  # 下载缓存目录
+temp_folder: /temp  # 临时目录
+rclone_upload_remote: "remote:"  # rclone 远程路径 (需与 rclone.conf 一致)
+preview_url: https://your-domain.com/gallery/  # 图片直链前缀 (以/结尾)
+
+# Telegraph 模式配置
+# 注意：必须配置 ~/.telepress.json 或环境变量指定图床
+# download_folder: /download
+# temp_folder: /temp
+
+# 其他
+preview_download_thread: 4  # 下载线程数
+proxy:  # 代理，留空不使用
+
+# 广告 (可选)
+AD:
+  text:
+  url:

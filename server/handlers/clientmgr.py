@@ -11,6 +11,7 @@ from telegram.ext import (
     filters,
 )
 
+from config.config import cfg
 from db.db import Client, User
 from utils.client import add_client, refresh_client_status
 from utils.statistics import get_client_statistics, get_usage_statistics
@@ -22,7 +23,11 @@ async def clientmgr(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "clients__archive_histories"
     )
 
-    if not user or user.group != "节点提供者":
+    all_users = await User.all().values_list("id", flat=True)
+    logger.info(f"ClientMgr access check: UserID={user_id}, Group={user.group if user else 'None'}, Admins={cfg['admin']}")
+    logger.info(f"DB Users: {all_users}")
+
+    if not user or (user.group != "节点提供者" and user.id not in cfg["admin"]):
         await update.effective_message.reply_text(
             "您没有权限执行此命令，请向管理员申请成为节点提供者"
         )
@@ -157,7 +162,7 @@ async def client_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"📄 节点信息：\n"
         f"🌐 URL：{client.url}\n"
         f"📡 状态：{client.status}\n"
-        f"站点: {client.EX}， 免费配额: {'充足' if client.Free == "1" else '不足'}\n"
+        f"站点: {client.EX}， 免费配额: {'充足' if client.Free == '1' else '不足'}\n"
         f"Ⓖ GP: {client.GP}， Ⓒ Credits: {client.Credits}\n"
         f"💸 允许 GP 消耗：{'是 ✅' if client.enable_GP_cost else '否 ❌'}\n\n"
         f"{usage_text}"
@@ -193,13 +198,11 @@ async def edit_client(update: Update, context: ContextTypes.DEFAULT_TYPE):
     client = await Client.get(id=client_id)
 
     if action == "refresh":
-        await refresh_client_status(client)
+        status, enable_GP_cost = await refresh_client_status(client)
         text = (
             f"🔄 已刷新节点状态\n"
-            f"状态: {client.status}"
-            f"站点: {client.EX}， 免费配额: {'充足' if str(client.Free) == '1' else '不足'}\n"
-            f"Ⓖ GP: {client.GP}， Ⓒ Credits: {client.Credits}\n"
-            f"💸 允许 GP 消耗：{'是 ✅' if client.enable_GP_cost else '否 ❌'}\n\n"
+            f"📡 当前状态：{status}\n"
+            f"💸 允许 GP 消耗：{'是 ✅' if enable_GP_cost else '否 ❌'}"
         )
         logger.info(f"{update.effective_user.name} 刷新/启用节点 {client.url}")
     elif action == "suspend":
@@ -242,12 +245,12 @@ async def get_new_url_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     client.url = url
     await client.save()
 
-    await refresh_client_status(client)
+    status, enable_GP_cost = await refresh_client_status(client)
     text = (
         f"✅ 编辑成功\n"
         f"🌐 URL：{url}\n"
-        f"📡 状态：{client.status}\n"
-        f"💸 允许 GP 消耗：{'是 ✅' if client.enable_GP_cost else '否 ❌'}"
+        f"📡 状态：{status}\n"
+        f"💸 允许 GP 消耗：{'是 ✅' if enable_GP_cost else '否 ❌'}"
     )
     logger.info(f"{update.effective_user.name} 编辑节点 URL {url}")
 
