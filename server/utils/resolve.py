@@ -7,7 +7,7 @@ from loguru import logger
 
 from db.db import ArchiveHistory
 from utils.client import get_available_clients
-from utils.ehentai import get_gdata, get_user_GP_cost
+from utils.ehentai import get_gdata, get_GP_cost
 from utils.http_client import http
 
 
@@ -32,7 +32,7 @@ async def fetch_tag_map(_):
 
 async def get_gallery_info(gid, token, long=False):
     """获取画廊基础信息 + 缩略图"""
-    user_GP_cost = await get_user_GP_cost(gid, token)
+    require_GP = await get_GP_cost(gid, token)
     gallery_info = await get_gdata(gid, token)
 
     new_tags = defaultdict(list)
@@ -75,7 +75,7 @@ async def get_gallery_info(gid, token, long=False):
     )
 
 
-async def get_download_url(user, gid, token):
+async def get_download_url(user, gid, token, image_quality, require_GP, timeout):
     """向可用节点请求下载链接"""
     clients = await get_available_clients()
 
@@ -83,7 +83,14 @@ async def get_download_url(user, gid, token):
         try:
             response = await http.post(
                 urljoin(client.url, "/resolve"),
-                json={"username": user.name, "gid": gid, "token": token},
+                json={
+                    "username": user.name,
+                    "gid": gid,
+                    "token": token,
+                    "image_quality": image_quality,
+                    "require_GP": require_GP,
+                    "timeout": timeout
+                },
                 timeout=60,
             )
             data = response.json()
@@ -98,7 +105,7 @@ async def get_download_url(user, gid, token):
                     user=user,
                     gid=gid,
                     token=token,
-                    GP_cost=data["require_GP"],
+                    GP_cost=require_GP,
                     client=client,
                 )
                 logger.info(
@@ -108,6 +115,8 @@ async def get_download_url(user, gid, token):
             error_msg = data.get("msg")
         except Exception as e:
             error_msg = e
+            client.status = "异常"
+            await client.save()
         logger.error(
             f"节点 {client.url} 解析 https://e-hentai.org/g/{gid}/{token}/ 失败：{error_msg}"
         )

@@ -2,7 +2,8 @@
 Unit tests for E-Hentai utility functions.
 """
 import pytest
-from unittest.mock import patch, MagicMock, AsyncMock
+from unittest.mock import patch, AsyncMock, MagicMock
+from bs4 import BeautifulSoup
 from utils.ehentai import get_gdata, get_GP_cost, _get_base_url
 
 # Mock HTML responses

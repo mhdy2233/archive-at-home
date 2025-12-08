@@ -1,6 +1,7 @@
 import re, math
 
 import httpx
+from bs4 import BeautifulSoup
 
 from config.config import cfg
 from utils.http_client import http

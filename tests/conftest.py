@@ -26,6 +26,19 @@ cfg.update({
 })
 
 
+from tortoise import Tortoise
+
+@pytest.fixture(scope="function", autouse=True)
+async def init_db():
+    """Initialize in-memory database for tests."""
+    await Tortoise.init(
+        db_url="sqlite://:memory:",
+        modules={"models": ["db.db"]}
+    )
+    await Tortoise.generate_schemas()
+    yield
+    await Tortoise.close_connections()
+
 @pytest.fixture
 def mock_user():
     """Create a mock user object."""

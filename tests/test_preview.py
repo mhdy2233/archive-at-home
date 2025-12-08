@@ -38,10 +38,15 @@ async def test_get_gallery_images_success():
          patch('utils.preview.subprocess.run') as mock_run, \
          patch('utils.preview.telepress.TelegraphPublisher') as mock_publisher_cls, \
          patch('utils.preview.Preview.create', new_callable=AsyncMock) as mock_db_create, \
-         patch('asyncio.to_thread', new_callable=AsyncMock) as mock_to_thread:
+         patch('asyncio.to_thread', new_callable=AsyncMock) as mock_to_thread, \
+         patch('utils.preview.get_gallery_info', new_callable=AsyncMock) as mock_info, \
+         patch('utils.preview.get_download_url', new_callable=AsyncMock) as mock_durl, \
+         patch('utils.preview.deduct_GP', new_callable=AsyncMock):
 
         # Configure mocks
-        mock_download.return_value = True
+        mock_info.return_value = (None, None, "thumb", {'res': 10}, 0)
+        mock_durl.return_value = "http://d"
+        mock_download.return_value = (True, "path")
         mock_publisher = MagicMock()
         mock_publisher_cls.return_value = mock_publisher
         mock_to_thread.return_value = "http://telegra.ph/test"
@@ -50,7 +55,6 @@ async def test_get_gallery_images_success():
         result = await get_gallery_images(
             gid="123", 
             token="abc", 
-            d_url="http://download", 
             mes=mock_mes, 
             user=mock_user
         )
@@ -69,7 +73,7 @@ async def test_get_gallery_images_key_missing():
     mock_resp.text = "Key missing, or incorrect key provided."
     
     with patch('utils.preview.http.get', return_value=mock_resp):
-        result = await get_gallery_images("123", "abc", "http://d", AsyncMock(), MagicMock())
+        result = await get_gallery_images("123", "abc", AsyncMock(), MagicMock())
         assert result[0] is False
         assert result[1] == "请检查画廊是否正确"
 
@@ -82,11 +86,16 @@ async def test_get_gallery_images_download_fail():
     # Mock download failing
     with patch('utils.preview.http.get', return_value=mock_resp), \
          patch('utils.preview.os.makedirs'), \
-         patch('utils.preview.async_multithread_download', new_callable=AsyncMock) as mock_download:
+         patch('utils.preview.async_multithread_download', new_callable=AsyncMock) as mock_download, \
+         patch('utils.preview.get_gallery_info', new_callable=AsyncMock) as mock_info, \
+         patch('utils.preview.get_download_url', new_callable=AsyncMock) as mock_durl, \
+         patch('utils.preview.deduct_GP', new_callable=AsyncMock):
         
+        mock_info.return_value = (None, None, "thumb", {'res': 10}, 0)
+        mock_durl.return_value = "http://d"
         mock_download.return_value = (False, "Download Error")
         
-        result = await get_gallery_images("123", "abc", "http://d", AsyncMock(), MagicMock())
+        result = await get_gallery_images("123", "abc", AsyncMock(), MagicMock())
         assert result[0] is False
         assert result[1] == "Download Error"
 
@@ -106,15 +115,20 @@ async def test_get_gallery_images_telepress_fail():
          patch('utils.preview.shutil.rmtree'), \
          patch('utils.preview.subprocess.run'), \
          patch('utils.preview.telepress.TelegraphPublisher'), \
-         patch('asyncio.to_thread', new_callable=AsyncMock) as mock_to_thread:
+         patch('asyncio.to_thread', new_callable=AsyncMock) as mock_to_thread, \
+         patch('utils.preview.get_gallery_info', new_callable=AsyncMock) as mock_info, \
+         patch('utils.preview.get_download_url', new_callable=AsyncMock) as mock_durl, \
+         patch('utils.preview.deduct_GP', new_callable=AsyncMock):
         
-        mock_download.return_value = True
+        mock_info.return_value = (None, None, "thumb", {'res': 10}, 0)
+        mock_durl.return_value = "http://d"
+        mock_download.return_value = (True, "path")
         
         async def raise_error(*args, **kwargs):
             raise Exception("Telepress Error")
         mock_to_thread.side_effect = raise_error
 
-        result = await get_gallery_images("123", "abc", "http://d", AsyncMock(), MagicMock())
+        result = await get_gallery_images("123", "abc", AsyncMock(), MagicMock())
         
         assert result[0] is False
         assert str(result[1]) == "Telepress Error"
@@ -141,12 +155,17 @@ async def test_get_gallery_images_telegraph_mode():
          patch('utils.preview.shutil.rmtree'), \
          patch('utils.preview.telepress.publish') as mock_publish, \
          patch('asyncio.to_thread', new_callable=AsyncMock) as mock_to_thread, \
-         patch('utils.preview.Preview.create', new_callable=AsyncMock):
+         patch('utils.preview.Preview.create', new_callable=AsyncMock), \
+         patch('utils.preview.get_gallery_info', new_callable=AsyncMock) as mock_info, \
+         patch('utils.preview.get_download_url', new_callable=AsyncMock) as mock_durl, \
+         patch('utils.preview.deduct_GP', new_callable=AsyncMock):
         
-        mock_download.return_value = True
+        mock_info.return_value = (None, None, "thumb", {'res': 10}, 0)
+        mock_durl.return_value = "http://d"
+        mock_download.return_value = (True, "path")
         mock_to_thread.return_value = "http://telegra.ph/test"
         
-        result = await get_gallery_images("123", "abc", "http://d", mock_mes, mock_user)
+        result = await get_gallery_images("123", "abc", mock_mes, mock_user)
         
         assert result is True
         # Verify telepress.publish was called (via asyncio.to_thread)
@@ -179,12 +198,17 @@ async def test_get_gallery_images_r2_mode():
          patch('utils.preview.subprocess.run') as mock_rclone, \
          patch('utils.preview.telepress.TelegraphPublisher') as mock_publisher_cls, \
          patch('asyncio.to_thread', new_callable=AsyncMock) as mock_to_thread, \
-         patch('utils.preview.Preview.create', new_callable=AsyncMock):
+         patch('utils.preview.Preview.create', new_callable=AsyncMock), \
+         patch('utils.preview.get_gallery_info', new_callable=AsyncMock) as mock_info, \
+         patch('utils.preview.get_download_url', new_callable=AsyncMock) as mock_durl, \
+         patch('utils.preview.deduct_GP', new_callable=AsyncMock):
         
-        mock_download.return_value = True
+        mock_info.return_value = (None, None, "thumb", {'res': 10}, 0)
+        mock_durl.return_value = "http://d"
+        mock_download.return_value = (True, "path")
         mock_to_thread.return_value = "http://telegra.ph/test"
         
-        result = await get_gallery_images("123", "abc", "http://d", mock_mes, mock_user)
+        result = await get_gallery_images("123", "abc", mock_mes, mock_user)
         
         assert result is True
         # Verify rclone was called in R2 mode
@@ -228,7 +252,7 @@ async def test_get_gallery_images_http_error():
     mock_resp.status_code = 404
     
     with patch('utils.preview.http.get', return_value=mock_resp):
-        result = await get_gallery_images("123", "abc", "http://d", AsyncMock(), MagicMock())
+        result = await get_gallery_images("123", "abc", AsyncMock(), MagicMock())
         assert result[0] is False
         assert "无法获取画廊信息" in result[1]
 
@@ -249,15 +273,21 @@ async def test_get_gallery_images_no_title():
          patch('utils.preview.shutil.rmtree'), \
          patch('utils.preview.telepress.publish'), \
          patch('asyncio.to_thread', new_callable=AsyncMock) as mock_to_thread, \
-         patch('utils.preview.Preview.create', new_callable=AsyncMock):
+         patch('utils.preview.Preview.create', new_callable=AsyncMock), \
+         patch('utils.preview.get_gallery_info', new_callable=AsyncMock) as mock_info, \
+         patch('utils.preview.get_download_url', new_callable=AsyncMock) as mock_durl, \
+         patch('utils.preview.deduct_GP', new_callable=AsyncMock):
         
         cfg['storage_mode'] = 'telegraph'
-        mock_download.return_value = True
+        mock_info.return_value = (None, None, "thumb", {'res': 10}, 0)
+        mock_durl.return_value = "http://d"
+        mock_download.return_value = (True, "path")
         mock_to_thread.return_value = "http://telegra.ph/test"
         
-        result = await get_gallery_images("123", "abc", "http://d", mock_mes, MagicMock())
+        result = await get_gallery_images("123", "abc", mock_mes, MagicMock())
         
         # Should use "Unknown Title" as fallback
         assert result is True
     
     cfg['storage_mode'] = 'r2'
+

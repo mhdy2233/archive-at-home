@@ -205,7 +205,8 @@ async def preview(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         for x in task_list:
             if x['gid'] == gid:
-                mes = await update.effective_message.reply_text(f"已有相同任务, 请稍候重试(队列: {task_list.index({"mes": mes,"gid": gid,"token": token,"user": user})})")
+                task_item = {"mes": mes,"gid": gid,"token": token,"user": user}
+                mes = await update.effective_message.reply_text(f"已有相同任务, 请稍候重试(队列: {task_list.index(task_item)})")
                 return
 
         mes = await update.effective_message.reply_text(f"已成功加入队列({len(task_list)})...")
