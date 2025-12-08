@@ -3,6 +3,7 @@ import re, html
 from loguru import logger
 from telegram import CopyTextButton, InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import CallbackQueryHandler, ContextTypes, MessageHandler, filters
+from telegram.error import BadRequest
 
 from config.config import cfg
 from db.db import User, Preview
@@ -67,13 +68,35 @@ async def reply_gallery_info(
         )
 
     await msg.delete()
-    await update.effective_message.reply_photo(
-        photo=thumb,
-        caption=text,
-        reply_markup=InlineKeyboardMarkup(keyboard),
-        has_spoiler=has_spoiler,
-        parse_mode="HTML",
-    )
+    try:
+        await update.effective_message.reply_photo(
+            photo=thumb,
+            caption=text,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            has_spoiler=has_spoiler,
+            parse_mode="HTML",
+        )
+    except BadRequest as e:
+        if "Media caption too long" in str(e) or "Message caption is too long" in str(e):
+            # 特殊处理：caption 太长
+            try:
+                text, has_spoiler, thumb, require_GP, timeout = await get_gallery_info(
+                    gid, token, long=True
+                )
+            except Exception as e:
+                await update.effective_message.edit_text("❌ 画廊解析失败，请检查链接或稍后再试")
+                logger.error(f"画廊 {url} 解析失败：{e}")
+                return
+            await update.effective_message.reply_photo(
+            photo=thumb,
+            caption=text,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            has_spoiler=has_spoiler,
+            parse_mode="HTML",
+        )
+        else:
+            # 其他 BadRequest 异常继续抛出
+            raise
 
 
 async def resolve_gallery(update: Update, context: ContextTypes.DEFAULT_TYPE):
