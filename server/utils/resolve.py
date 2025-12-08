@@ -30,7 +30,7 @@ async def fetch_tag_map(_):
         )
 
 
-async def get_gallery_info(gid, token):
+async def get_gallery_info(gid, token, long=False):
     """获取画廊基础信息 + 缩略图"""
     require_GP = await get_GP_cost(gid, token)
     gallery_info = await get_gdata(gid, token)
@@ -46,7 +46,8 @@ async def get_gallery_info(gid, token):
     tag_text = "\n".join(
         f"{ns_name}：{' '.join(tags_list)}" for ns_name, tags_list in new_tags.items()
     )
-
+    if long:
+        tag_text = tag_text[:800]
     text = (
         f"📌 主标题：{gallery_info['title']}\n"
         + (

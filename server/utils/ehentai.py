@@ -29,7 +29,7 @@ base_url = _get_base_url()
 
 
 async def get_gdata(gid, token):
-    url = f"{base_url}/api.php"
+    url = "https://e-hentai.org/api.php"
     data = {"method": "gdata", "gidlist": [[gid, token]], "namespace": 1}
     response = await http.post(url, headers=headers, json=data)
     result = response.json().get("gmetadata")[0]

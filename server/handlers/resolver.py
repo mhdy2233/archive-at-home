@@ -3,6 +3,7 @@ import re, html
 from loguru import logger
 from telegram import CopyTextButton, InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import CallbackQueryHandler, ContextTypes, MessageHandler, filters
+from telegram.error import BadRequest
 
 from config.config import cfg
 from db.db import User, Preview
@@ -67,13 +68,35 @@ async def reply_gallery_info(
         )
 
     await msg.delete()
-    await update.effective_message.reply_photo(
-        photo=thumb,
-        caption=text,
-        reply_markup=InlineKeyboardMarkup(keyboard),
-        has_spoiler=has_spoiler,
-        parse_mode="HTML",
-    )
+    try:
+        await update.effective_message.reply_photo(
+            photo=thumb,
+            caption=text,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            has_spoiler=has_spoiler,
+            parse_mode="HTML",
+        )
+    except BadRequest as e:
+        if "Media caption too long" in str(e) or "Message caption is too long" in str(e):
+            # 特殊处理：caption 太长
+            try:
+                text, has_spoiler, thumb, require_GP, timeout = await get_gallery_info(
+                    gid, token, long=True
+                )
+            except Exception as e:
+                await update.effective_message.edit_text("❌ 画廊解析失败，请检查链接或稍后再试")
+                logger.error(f"画廊 {url} 解析失败：{e}")
+                return
+            await update.effective_message.reply_photo(
+            photo=thumb,
+            caption=text,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            has_spoiler=has_spoiler,
+            parse_mode="HTML",
+        )
+        else:
+            # 其他 BadRequest 异常继续抛出
+            raise
 
 
 async def resolve_gallery(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -132,15 +155,18 @@ async def download(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 []
             ]
 
+        text = f"<blockquote expandable>{html.escape(caption)}</blockquote>\n✅ 下载链接获取成功\n<blockquote expandable>"
         if image_quality == "org":
             keyboard[1].append(InlineKeyboardButton("🔗 复制原图", copy_text=CopyTextButton(d_url+"0?start=1")))
+            text+= f"原图: <code>{d_url}0?start=1</code>\n"
         keyboard[1].append(InlineKeyboardButton("🔗 复制重采样", copy_text=CopyTextButton(d_url+"1?start=1")))
+        text+= f"重采样: <code>{d_url}1?start=1</code></blockquote>"
+
         ad_conf = cfg.get("AD", {})
         if ad_conf.get("text") and ad_conf.get("url"):
             keyboard.append([InlineKeyboardButton(ad_conf["text"], url=ad_conf["url"])])
-
         await update.effective_message.edit_caption(
-            caption=f"<blockquote expandable>{html.escape(caption)}</blockquote>\n\n✅ 下载链接获取成功",
+            caption=text,
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="HTML",
         )
@@ -186,32 +212,16 @@ async def preview(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         for x in task_list:
             if x['gid'] == gid:
-                mes = await update.effective_message.reply_text(f"已有相同任务, 请稍候重试")
+                mes = await update.effective_message.reply_text(f"已有相同任务, 请稍候重试(队列: {task_list.index({"mes": mes,"gid": gid,"token": token,"user": user})})")
                 return
 
-        mes = await update.effective_message.reply_text(f"正在获取下载链接...")
-        d_url = await get_download_url(
-            user, gid, token, "res", int(require_GP), timeout
-        )
-
-        if d_url:
-            await deduct_GP(user, int(require_GP))
-            task_list.append({
-                "mes": mes,
-                "d_url": d_url,
-                "gid": gid,
-                "token": token,
-                "user": user
-            })
-            await mes.edit_text(f"获取下载链接成功，已加入队列({len(task_list)})...")
-        elif d_url == None:
-            await mes.edit_text("❌ 暂无可用服务器")
-            logger.error(f"https://e-hentai.org/g/{gid}/{token}/ 下载链接获取失败")
-        else:
-            await mes.edit_text("❌ 获取下载链接失败")
-            logger.error(f"https://e-hentai.org/g/{gid}/{token}/ 下载链接获取失败")
-
-
+        mes = await update.effective_message.reply_text(f"已成功加入队列({len(task_list)})...")
+        task_list.append({
+            "mes": mes,
+            "gid": gid,
+            "token": token,
+            "user": user
+        })
 
 def register(app):
     app.add_handler(
