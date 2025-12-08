@@ -7,9 +7,9 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 
 from db.db import User
-from utils.ehentai import get_GP_cost
+from utils.ehentai import get_user_GP_cost
 from utils.GP_action import checkin, deduct_GP, get_current_GP
-from utils.resolve import get_download_url, get_gallery_info
+from utils.resolve import get_download_url
 
 processing_tasks = {}
 results_cache = defaultdict(dict)
@@ -56,18 +56,14 @@ async def verify_user(apikey: str):
     return user
 
 
-async def process_resolve(user, gid, token, image_quality):
+async def process_resolve(user, gid, token):
     try:
         require_GP = await get_GP_cost(gid, token)
     except Exception:
         return 4, "获取画廊信息失败", None, None
 
-    if (
-        not isinstance(require_GP, dict)
-        or "org" not in require_GP
-        or "res" not in require_GP
-    ):
-        return 8, "画廊 GP 信息解析异常", None, None
+    if get_current_GP(user) < user_GP_cost:
+        return 5, "GP 不足", None
 
     if image_quality not in ("org", "res"):
         return 9, "参数 image_quality 非法", None, None
@@ -95,7 +91,6 @@ async def handle_resolve(request: Request):
         apikey = data.get("apikey")
         gid = data.get("gid")
         token = data.get("token")
-        image_quality = data.get("image_quality", "org")  # 可选参数
         force_resolve = data.get("force_resolve", False)
         if not all([apikey, gid, token]):
             return format_response(1, "参数不完整")
@@ -104,47 +99,32 @@ async def handle_resolve(request: Request):
         if isinstance(user, JSONResponse):
             return user
 
-        # 缓存 key 包含清洗度，避免不同质量串用
-        key = f"{user.id}|{gid}|{image_quality}"
+        key = f"{user.id}|{gid}"
 
+        # 使用缓存
         cache = results_cache.get(key)
         if cache and cache.get("expire_time", 0) > time.time() and not force_resolve:
-            return format_response(
-                0,
-                "使用缓存记录",
-                {"archive_url": cache["d_url"], "image_quality": image_quality},
-            )
+            return format_response(0, "使用缓存记录", {"archive_url": cache["d_url"]})
 
         task = processing_tasks.get(key)
         if not task:
             async with lock:
                 task = processing_tasks.get(key)
                 if not task:
-                    task = asyncio.create_task(
-                        process_resolve(user, gid, token, image_quality)
-                    )
+                    task = asyncio.create_task(process_resolve(user, gid, token))
                     processing_tasks[key] = task
 
         try:
-            code, msg, d_url, gp_cost = await task
+            code, msg, d_url = await task
             if not d_url:
-                return format_response(
-                    code, msg, {"image_quality": image_quality, "gp_cost": gp_cost}
-                )
+                return format_response(code, msg)
 
             results_cache[key] = {"d_url": d_url, "expire_time": time.time() + 86400}
-            return format_response(
-                code,
-                msg,
-                {
-                    "archive_url": d_url,
-                    "image_quality": image_quality,
-                    "gp_cost": gp_cost,
-                },
-            )
+            return format_response(code, msg, {"archive_url": d_url})
 
         finally:
             async with lock:
+                # 确保任务完成后无论成功失败都清理任务记录
                 if processing_tasks.get(key) == task:
                     del processing_tasks[key]
 

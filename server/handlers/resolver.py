@@ -170,16 +170,9 @@ async def download(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="HTML",
         )
-    elif d_url == None:
-        await update.effective_message.edit_caption(
-            caption=f"{caption}\n\n❌ 暂无可用服务器",
-            reply_markup=update.effective_message.reply_markup,
-            parse_mode="HTML",
-        )
-        logger.error(f"https://e-hentai.org/g/{gid}/{token}/ 下载链接获取失败")
     else:
         await update.effective_message.edit_caption(
-            caption=f"{caption}\n\n❌ 获取下载链接失败",
+            caption=f"{caption}\n\n❌ 下载链接获取失败，请稍后再试",
             reply_markup=update.effective_message.reply_markup,
             parse_mode="HTML",
         )

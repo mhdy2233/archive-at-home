@@ -1,7 +1,6 @@
 import re, math
 
 import httpx
-from bs4 import BeautifulSoup
 
 from config.config import cfg
 from utils.http_client import http
@@ -34,6 +33,7 @@ async def get_gdata(gid, token):
     response = await http.post(url, headers=headers, json=data)
     result = response.json().get("gmetadata")[0]
     return result
+
 
 
 async def get_GP_cost(gid, token):
@@ -88,3 +88,4 @@ async def get_GP_cost(gid, token):
         if response.url == "https://e-hentai.org/bounce_login.php?b=d&bt=1-4":
             return "服务器cookie异常"
     return require_GP
+
