@@ -23,7 +23,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     tg_user = update.effective_message.from_user
     try:
-        user, created = await User.create(id=tg_user.id, name=tg_user.full_name)
+        user = await User.create(id=tg_user.id, name=tg_user.full_name)
         created = True
 
     except IntegrityError:
