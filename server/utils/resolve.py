@@ -45,7 +45,7 @@ async def get_gallery_info(gid, token):
                 if (ns_info := tag_map.get(ns)) and (tag_name := ns_info["data"].get(tag)):
                     new_tags[ns_info["name"]].append(f"#{tag_name}")
             except NameError:
-                await fetch_tag_map()
+                await fetch_tag_map("_")
             else:
                  break
             
