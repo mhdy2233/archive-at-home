@@ -30,7 +30,7 @@ async def fetch_tag_map(_):
         )
 
 
-async def get_gallery_info(gid, token, long=False):
+async def get_gallery_info(gid, token):
     """获取画廊基础信息 + 缩略图"""
     require_GP = await get_GP_cost(gid, token)
     gallery_info = await get_gdata(gid, token)
@@ -51,8 +51,6 @@ async def get_gallery_info(gid, token, long=False):
     tag_text = "\n".join(
         f"{ns_name}：{' '.join(tags_list)}" for ns_name, tags_list in new_tags.items()
     )
-    if long:
-        tag_text = tag_text[:800]
     text = (
         html.escape(f"📌 主标题：{gallery_info['title']}\n")
         + (
@@ -65,7 +63,7 @@ async def get_gallery_info(gid, token, long=False):
         f"👤 上传者：<a href='https://e-hentai.org/uploader/{gallery_info['uploader']}'>{gallery_info['uploader']}</a>\n"
         f"🕒 上传时间：{datetime.fromtimestamp(float(gallery_info['posted'])):%Y-%m-%d %H:%M}\n"
         f"📄 页数：{gallery_info['filecount']}\n\n"
-        f"{tag_text}</blockquote>\n"
+        f"{tag_text[:800]}</blockquote>\n"
         f"💰 归档消耗 GP：原图({require_GP['org']}) 重采样({require_GP['res']}) 预览({require_GP['pre']})"
     )
 

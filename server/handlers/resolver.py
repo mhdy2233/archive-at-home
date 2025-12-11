@@ -3,13 +3,12 @@ import re, html
 from loguru import logger
 from telegram import CopyTextButton, InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import CallbackQueryHandler, ContextTypes, MessageHandler, filters
-from telegram.error import BadRequest
 
 from config.config import cfg
-from db.db import User, Preview
+from db.db import User
 from utils.GP_action import deduct_GP, get_current_GP
 from utils.resolve import get_download_url, get_gallery_info
-from utils.preview import task_list
+from utils.preview import preview_add, task_list
 
 async def reply_gallery_info(
     update: Update, context: ContextTypes.DEFAULT_TYPE, url: str, gid: str, token: str
@@ -68,35 +67,13 @@ async def reply_gallery_info(
         )
 
     await msg.delete()
-    try:
-        await update.effective_message.reply_photo(
-            photo=thumb,
-            caption=text,
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            has_spoiler=has_spoiler,
-            parse_mode="HTML",
-        )
-    except BadRequest as e:
-        if "Media caption too long" in str(e) or "Message caption is too long" in str(e):
-            # 特殊处理：caption 太长
-            try:
-                text, has_spoiler, thumb, require_GP, timeout = await get_gallery_info(
-                    gid, token, long=True
-                )
-            except Exception as e:
-                await update.effective_message.edit_text("❌ 画廊解析失败，请检查链接或稍后再试")
-                logger.error(f"画廊 {url} 解析失败：{e}")
-                return
-            await update.effective_message.reply_photo(
-            photo=thumb,
-            caption=text,
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            has_spoiler=has_spoiler,
-            parse_mode="HTML",
-        )
-        else:
-            # 其他 BadRequest 异常继续抛出
-            raise
+    await update.effective_message.reply_photo(
+        photo=thumb,
+        caption=text,
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        has_spoiler=has_spoiler,
+        parse_mode="HTML",
+    )
 
 
 async def resolve_gallery(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -198,22 +175,10 @@ async def preview(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.effective_message.reply_text("🚫 您已被封禁")
         return
 
-    _, gid, token, require_GP, timeout = query.data.split("|")
-    ph_url = await Preview.filter(gid=gid).first()
-    if ph_url:
-        await update.effective_message.reply_text(f"已存在预览，本次不消耗GP\n{ph_url.ph_url}")
-    else:
-        current_GP = get_current_GP(user)
-        if current_GP < int(require_GP):
-            await update.effective_message.reply_text(f"⚠️ GP 不足，当前余额：{current_GP}")
-            return
-        
-        for x in task_list:
-            if x['gid'] == gid:
-                mes = await update.effective_message.reply_text(f"已有相同任务, 请稍候重试(队列: {task_list.index({"mes": mes,"gid": gid,"token": token,"user": user})})")
-                return
-
-        mes = await update.effective_message.reply_text(f"已成功加入队列({len(task_list)})...")
+    _, gid, token, require_GP, _ = query.data.split("|")
+    result = await preview_add(gid, token, require_GP, user)
+    mes = await update.effective_message.reply_text(result['mes'] if result['status'] == True else f"已成功加入队列({len(task_list)})...")
+    if not result['status']:
         task_list.append({
             "mes": mes,
             "gid": gid,
@@ -230,3 +195,4 @@ def register(app):
     )
     app.add_handler(CallbackQueryHandler(download, pattern=r"^download"))
     app.add_handler(CallbackQueryHandler(preview, pattern=r"^preview"))
+

@@ -4,10 +4,11 @@ from loguru import logger
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
 from tortoise.functions import Count
+from tortoise.exceptions import IntegrityError
 
 from db.db import User
 from handlers.resolver import reply_gallery_info
-from utils.GP_action import checkin, get_current_GP
+from utils.GP_action import checkin, get_current_GP, GPRecord
 from config.config import cfg
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -38,6 +39,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if created:
         await update.effective_message.reply_text("🎉 欢迎加入，您已成功注册！")
         logger.info(f"{user.name}（{user.id}）注册成功")
+        await GPRecord.create(user=user, amount=20000)
     if context.args:
         gid, token = context.args[0].split("_")
         await reply_gallery_info(

@@ -11,12 +11,13 @@ from telegram import (
     InputTextMessageContent,
     Update,
 )
-from telegram.ext import CallbackQueryHandler, ContextTypes, InlineQueryHandler
+from telegram.ext import CallbackQueryHandler, ContextTypes, InlineQueryHandler, ChosenInlineResultHandler
 from tortoise.functions import Count
 
 from db.db import User
-from utils.GP_action import checkin
+from utils.GP_action import checkin, GPRecord
 from utils.resolve import get_gallery_info
+from utils.preview import preview_add, task_list
 
 
 async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -64,14 +65,14 @@ async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 input_message_content=InputTextMessageContent("请输入合法链接"),
             )
         ]
-        await update.inline_query.answer(results)
+        await update.inline_query.answer(results, cache_time=0)
         return
 
     gid, token = match.groups()
 
     logger.info(f"解析画廊 {query}")
     try:
-        text, _, thumb, _, _ = await get_gallery_info(gid, token)
+        text, _, thumb, require_GP, _ = await get_gallery_info(gid, token)
     except:
         results = [
             InlineQueryResultArticle(
@@ -98,18 +99,65 @@ async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     results = [
         InlineQueryResultPhoto(
-            id=str(uuid.uuid4()),
+            id="info",
             photo_url=thumb,
             thumbnail_url=thumb,
             title="画廊预览",
+            description="查看画廊预览图以及标签",
             caption=text,
             reply_markup=keyboard,
             parse_mode="HTML",
+        ),
+        InlineQueryResultArticle(
+            id=f"pre_{gid}_{token}_{require_GP['pre']}",
+            thumbnail_url="https://www.emojiall.com/images/60/emojione/1F56E.png",
+            title="生成预览",
+            description="生成telegraph文章",
+            input_message_content=InputTextMessageContent("请等待..."),
         )
     ]
 
-    await update.inline_query.answer(results)
+    await update.inline_query.answer(results, cache_time=0)
 
+async def result_pre(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    result = update.chosen_inline_result
+    inline_message_id = result.inline_message_id
+    user = result.from_user
+    _, gid, token, require_GP = result.result_id.split("_")
+    
+    if inline_message_id:
+        user = await User.get_or_none(id=user.id).prefetch_related(
+            "GP_records"
+        )
+
+        if not user:
+            user, created = await User.create(id=user.id, name=user.full_name)
+            await GPRecord.create(user=user, amount=20000)
+
+        if user.group == "黑名单":
+            mes = "🚫 您已被封禁"
+        else:
+            if require_GP != None:
+                result = await preview_add(gid, token, require_GP, user)
+                mes = result['mes'] if result['status'] == True else f"已成功加入队列({len(task_list)})..."
+                await context.bot.edit_message_text(
+                    text=mes,
+                    inline_message_id=inline_message_id
+                )
+                if not result['status']:
+                    task_list.append({
+                        "mes": inline_message_id,
+                        "gid": gid,
+                        "token": token,
+                        "user": user
+                    })
+            else:
+
+                mes = "没有重彩样，无法生成预览"
+                await context.bot.edit_message_text(
+                    text=mes,
+                    inline_message_id=inline_message_id
+                )
 
 async def handle_checkin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -155,3 +203,4 @@ async def handle_checkin(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def register(app):
     app.add_handler(InlineQueryHandler(inline_query))
     app.add_handler(CallbackQueryHandler(handle_checkin, pattern=r"^checkin"))
+    app.add_handler(ChosenInlineResultHandler(result_pre, pattern=r"^pre"))

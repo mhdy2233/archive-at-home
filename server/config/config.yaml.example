@@ -12,6 +12,7 @@ AD:
 help_text: ""   # html格式的消息
 
 preview_download_thread: 4  # 预览生成时下载线程
+rclone_upload_thread: 4  # rclone上传线程
 ph_token: xxx  # telegraph token
 author_name: EH_Ar_Bot
 author_url: https://t.me/EH_ArBot

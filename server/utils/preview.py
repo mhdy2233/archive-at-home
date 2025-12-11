@@ -1,4 +1,4 @@
-import re
+import re, math
 import aiohttp
 import asyncio
 import os
@@ -7,6 +7,8 @@ import subprocess
 import shutil
 import aiofiles
 
+from telegram.ext import ContextTypes
+
 from telegraph import Telegraph
 from bs4 import BeautifulSoup
 from loguru import logger
@@ -14,8 +16,8 @@ from loguru import logger
 from config.config import cfg
 from utils.http_client import http
 from db.db import Preview
+from utils.GP_action import deduct_GP, get_current_GP
 from utils.resolve import get_download_url, get_gallery_info
-from utils.GP_action import deduct_GP
 
 task_list = []
 
@@ -62,56 +64,90 @@ async def async_multithread_download(url, filename, parts=4):
 
 
 async def telegraph_upload(title, urls, gid, thumb):
-    # 1. 创建 telegraph 对象
     telegraph = Telegraph(access_token=cfg['ph_token'])
 
-    # 2. 创建匿名账号（只需一次）
-    # telegraph.create_account(short_name=USERNAME, author_name=USERNAME, author_url="https://t.me/lajijichang")
-        # 3. 生成内容结构
-    content = []
+    MAX_PER_PAGE = 200   # 每页最多 200 张图片
+    total = len(urls)
+    pages = math.ceil(total / MAX_PER_PAGE)
 
-    # 3.1 插入封面
-    content.append({"tag": "img", "attrs": {"src": thumb}})
+    page_links = []   # 存储分页后的链接
 
-    # 3.3 插入图集
-    content.extend([{"tag": "img", "attrs": {"src": f"{cfg['preview_url']}{gid}/{u}"}} for u in urls])
+    for i in range(pages):
+        start = i * MAX_PER_PAGE
+        end = start + MAX_PER_PAGE
+        part_urls = urls[start:end]
 
-    # 3.4 插入广告
-    if cfg['AD']:
-        content.append({"tag": "a", "attrs": {"href": cfg['AD']['url']}, "children": [cfg['AD']['text']]})
+        # 内容结构
+        content = []
 
-    # 4. 创建 Telegraph 页面
-    page = telegraph.create_page(title=title, content=content, author_name=cfg['author_name'], author_url=cfg['author_url'])
-    return 'https://telegra.ph/' + page['path']
+        # 封面
+        content.append({"tag": "img", "attrs": {"src": thumb}})
 
-# async def monitor_folder(path, stop_event, mes, interval=5):
-#     """
-#     异步监控文件夹内文件数量变化，可随时终止。
-#     :param path: 文件夹路径
-#     :param stop_event: asyncio.Event 用于停止监控
-#     :param interval: 检查间隔秒数
-#     """
-#     print(f"开始监控：{path}")
+        # 图集
+        content.extend([
+            {"tag": "img", "attrs": {"src": f"{cfg['preview_url']}{gid}/{u}"}}
+            for u in part_urls
+        ])
 
-#     while not stop_event.is_set():
-#         # 获取文件数量
-#         try:
-#             count = sum(1 for f in os.listdir(path)if os.path.isfile(os.path.join(path, f)))
-#         except FileNotFoundError:
-#             print(f"目录不存在：{path}")
-#             break
+        # 广告
+        if cfg['AD']:
+            content.append({
+                "tag": "a",
+                "attrs": {"href": cfg['AD']['url']},
+                "children": [cfg['AD']['text']]
+            })
+            content.append("\n")
 
-#         await mes.edit_text(f"剩余上传进度：{count}")
-#         await asyncio.sleep(interval)
+        # 子页标题，如：标题 (1/4)
+        page_title = f"{title} ({i+1}/{pages})" if pages > 1 else title
 
-def telegraph_title_length(s):
-    length = 0
-    for ch in s:
-        if ord(ch) < 128:  # ASCII 字符
-            length += 1
-        else:  # 中文 / emoji / 全角
-            length += 2
-    return length
+        page = telegraph.create_page(
+            title=page_title,
+            content=content,
+            author_name=cfg['author_name'],
+            author_url=cfg['author_url']
+        )
+
+        page_links.append({"title": page_title, "content": content, "path": page['path']})
+    if len(page_links) > 1:
+        page_index_nodes = ["Pages / 分页: "]
+        for index, x in enumerate(page_links):
+            page_index_nodes.append(    
+                {
+                "tag": "p",
+                "children": [
+                    {"tag": "a", "attrs": {"href": f"/{x['path']}"}, "children": [f"[{index+1}]"]},
+                    " "
+                ]
+            }
+            )
+        for index, x in enumerate(page_links):
+            new_content = []
+            if index > 0:
+                new_content.append({
+                    'tag': 'a',
+                    'attrs': {'href': f"/{page_links[index - 1]['path']}"},
+                    'children': ['◀ Previous / 上一页']
+                })
+                new_content.append(" | ")
+            if index < (len(page_links) - 1):
+                new_content.append({
+                    'tag': 'a',
+                    'attrs': {'href': f"/{page_links[index + 1]['path']}"},
+                    'children': ['Next / 下一页 ▶']
+                })
+            new_content.append("\n")
+            content = x['content']
+            content+=new_content
+            tmp = page_index_nodes
+            tmp[index + 1]['tag'] = "strong"
+            content+=tmp
+            telegraph.edit_page(
+                title=x['title'],
+                path=x['path'],
+                content=content
+            )
+    return f"https://telegra.ph/{page_links[0]['path']}"
 
 async def get_gallery_images(gid, token, mes, user):
     res = await http.get(f"https://exhentai.org/g/{gid}/{token}?inline_set=tr_40", follow_redirects=True)
@@ -126,7 +162,7 @@ async def get_gallery_images(gid, token, mes, user):
                     gid, token
                 )
             except Exception as e:
-                await mes.edit_text("❌ 画廊解析失败，请检查链接或稍后再试")
+                await mes_edit_text(mes, "❌ 画廊解析失败，请检查链接或稍后再试")
                 logger.error(f"画廊 https://exhentai.org/g/{gid}/{token} 解析失败：{e}")
                 return
             d_url = await get_download_url(
@@ -134,11 +170,11 @@ async def get_gallery_images(gid, token, mes, user):
             )
             if d_url:
                 await deduct_GP(user, int(require_GP['res']))
-                await mes.edit_text("获取下载链接成功, 开始下载...")
+                await mes_edit_text(mes, "获取下载链接成功, 开始下载...")
                 os.makedirs(f"{cfg['download_folder']}", exist_ok=True)
                 dow = await async_multithread_download(d_url + "1?start=1", f"{gid}.zip", parts=cfg['preview_download_thread'])
                 if dow[0] == True:
-                    await mes.edit_text("下载完成，开始解压...")
+                    await mes_edit_text(mes, "下载完成，开始解压...")
                     try:
                         os.makedirs(f"{cfg['temp_folder']}/{gid}", exist_ok=True)
                         with zipfile.ZipFile(f"{cfg['download_folder']}/{gid}.zip", "r") as zip_ref:
@@ -169,12 +205,10 @@ async def get_gallery_images(gid, token, mes, user):
                         # 自然排序
                         image_names.sort(key=natural_sort_key)
                         print(image_names)
-                        await mes.edit_text("解压完成，开始上传...")
-                        # stop_event = asyncio.Event()
-                        # task = asyncio.create_task(monitor_folder(f"{cfg['temp_folder']}/{gid}", stop_event, mes))
+                        await mes_edit_text(mes, "解压完成，开始上传...")
                         try:
                             result = subprocess.run(
-                            ['rclone', 'move', f"{cfg['temp_folder']}/{gid}/", f"{cfg['rclone_upload_remote']}/{gid}", '-P', '--transfers=8'],
+                            ['rclone', 'move', f"{cfg['temp_folder']}/{gid}/", f"{cfg['rclone_upload_remote']}/{gid}", '-P', f'--transfers={cfg['rclone_upload_thread']}'],
                             stdout=subprocess.PIPE,  # 捕获标准输出
                             stderr=subprocess.PIPE,  # 捕获错误输出
                             text=True,               # 输出作为字符串
@@ -190,7 +224,7 @@ async def get_gallery_images(gid, token, mes, user):
                             # stop_event.set()
                             ph_url = await telegraph_upload(title=title, urls=image_names, gid=gid, thumb=thumb)
                             if ph_url:
-                                await mes.edit_text(f"生成完成预览链接为:\n{ph_url}")
+                                await mes_edit_text(mes, f"生成完成, 预览链接为:\n{ph_url}")
                                 await Preview.create(
                                     user=user,
                                     gid=gid,
@@ -204,10 +238,10 @@ async def get_gallery_images(gid, token, mes, user):
                 else:
                     print(dow[1])
             elif d_url == None:
-                await mes.edit_text("❌ 暂无可用服务器")
+                await mes_edit_text(mes, "❌ 暂无可用服务器")
                 logger.error(f"https://e-hentai.org/g/{gid}/{token}/ 下载链接获取失败")
             else:
-                await mes.edit_text("❌ 获取下载链接失败")
+                await mes_edit_text(mes, "❌ 获取下载链接失败")
                 logger.error(f"https://e-hentai.org/g/{gid}/{token}/ 下载链接获取失败")
     else:
         print("400")
@@ -220,7 +254,41 @@ async def preview_start():
             if task:
                 continue
             else:
-                x['mes'].edit_text(f'错误: \n{task[1]}')
+                await mes_edit_text(x['mes'], f'错误: \n{task[1]}')
             for x in task_list:
-                x['mes'].edit_text(f"获取下载链接成功，已加入队列({len(task_list)})...")
+                await mes_edit_text(x['mes'], f"获取下载链接成功，已加入队列({len(task_list)})...")
         await asyncio.sleep(1)
+
+async def mes_edit_text(mes, text):
+    context=ContextTypes.DEFAULT_TYPE
+    if type(mes) == str:
+        await context.bot.edit_message_text(
+            text=text,
+            inline_message_id=mes
+        )
+    else:
+        await mes.edit_text(text)
+
+async def preview_add(gid, token, require_GP, user):
+    ph_url = await Preview.filter(gid=gid).first()
+    result = {
+        "status": None,
+        "ph_url": None,
+        "mes": None
+    }
+    if ph_url:
+        result['status'] = True
+        result['ph_url'] = ph_url.ph_url
+        result['mes'] = f"已存在预览，本次不消耗GP\n{result['ph_url']}"
+    else:
+        current_GP = get_current_GP(user)
+        if current_GP < int(require_GP):
+            result['status'] = True
+            result['mes'] = f"⚠️ GP 不足，当前余额：{current_GP}"
+        else:
+            for x in task_list:
+                if x['gid'] == gid:
+                    result['status'] = True
+                    result['mes'] = f"已有相同任务, 请稍候重试"
+                    
+    return result
