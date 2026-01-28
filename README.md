@@ -9,7 +9,7 @@
 ## 部署节点
 
 ### Cloudflare Workers
-
+**暂不可用**
 1. 复制 [client_worker.js](https://github.com/taskmgr818/archive-at-home/blob/main/client_worker.js) 文件中的代码到你的 Workers 控制台代码编辑区  
 2. 修改代码中的 `COOKIE` 值
 3. 保存并部署
@@ -23,7 +23,7 @@
 
 ### 一键脚本
 仅安装
-curl -sSL https://github.com/mhdy2233/archive-at-home/blob/main/client/install.sh | bash
+`curl -sSL https://github.com/mhdy2233/archive-at-home/blob/main/client/install.sh | bash`
 
 ## 鸣谢
 
