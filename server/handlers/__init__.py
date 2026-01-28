@@ -1,6 +1,6 @@
 from telegram import BotCommand
 
-from . import clientmgr, inline_query, resolver, statistics, user_action, usermgr
+from . import clientmgr, inline_query, resolver, statistics, user_action, usermgr, tools
 
 BOT_COMMANDS = [
     BotCommand("clientmgr", "节点管理"),
@@ -9,6 +9,7 @@ BOT_COMMANDS = [
     BotCommand("myinfo", "我的信息"),
     BotCommand("usermgr", "用户管理"),
     BotCommand("help", "帮助"),
+    BotCommand("get_cookie", "获取里站cookie")
 ]
 
 
@@ -19,3 +20,4 @@ def register_all_handlers(app):
     resolver.register(app)
     statistics.register(app)
     inline_query.register(app)
+    tools.register(app)

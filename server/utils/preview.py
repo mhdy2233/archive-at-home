@@ -97,7 +97,7 @@ async def telegraph_upload(title, urls, gid, thumb):
                 "children": [cfg['AD']['text']]
             })
             content.append("\n")
-
+        
         # 子页标题，如：标题 (1/4)
         page_title = f"{title} ({i+1}/{pages})" if pages > 1 else title
 
@@ -231,6 +231,7 @@ async def get_gallery_images(gid, token, mes, user):
                                     token=token,
                                     ph_url=ph_url
                                 )
+                                await asyncio.sleep(2)
                             return True
                         finally:
                             shutil.rmtree(cfg['temp_folder'])
@@ -258,6 +259,10 @@ async def preview_start():
             for x in task_list:
                 await mes_edit_text(x['mes'], f"获取下载链接成功，已加入队列({len(task_list)})...")
         await asyncio.sleep(1)
+
+global preview_task
+async def start():
+    preview_task = asyncio.create_task(preview_start())
 
 async def mes_edit_text(mes, text):
     context=ContextTypes.DEFAULT_TYPE

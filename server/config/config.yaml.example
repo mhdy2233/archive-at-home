@@ -23,3 +23,7 @@ rclone_upload_remote: "tg_bot:"  # rclone上传的路径
 preview_url: https://pan.mhdy.net/  # 用于组合预览的直链(/结尾)
 
 proxy:
+
+get_cookie:
+  pass: "1234"  # token
+  urls: [{"name": "美国", "url": "https://123.123"}]   # 多个url

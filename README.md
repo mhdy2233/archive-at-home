@@ -15,13 +15,15 @@
 3. 保存并部署
 
 ### Docker
-1. 填写 [config.yaml](https://github.com/taskmgr818/archive-at-home/raw/main/client/config/config.yaml.example)
+1. 更改配置文件 (https://github.com/mhdy2233/archive-at-home/blob/main/client/config/config.yaml.example)
 2. 执行
     ```text
-    docker run --net host -v /yourconfigpath.yaml:/app/config/config.yaml --name archive-at-home-client taskmgr818/archive-at-home-client
+    docker run --net host -v /yourconfigpath.yaml:/app/config/config.yaml --name archive-at-home-client ghcr.io/mhdy2233/client-app:latest
     ```
 
-
+### 一键脚本
+仅安装
+curl -sSL https://github.com/mhdy2233/archive-at-home/blob/main/client/install.sh | bash
 
 ## 鸣谢
 

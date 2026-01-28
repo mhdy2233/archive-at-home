@@ -5,10 +5,10 @@ from telegram import CopyTextButton, InlineKeyboardButton, InlineKeyboardMarkup,
 from telegram.ext import CallbackQueryHandler, ContextTypes, MessageHandler, filters
 
 from config.config import cfg
-from db.db import User
+from db.db import User, GPRecord
 from utils.GP_action import deduct_GP, get_current_GP
 from utils.resolve import get_download_url, get_gallery_info
-from utils.preview import preview_add, task_list
+from utils.preview import preview_add, task_list, start, preview_task
 
 async def reply_gallery_info(
     update: Update, context: ContextTypes.DEFAULT_TYPE, url: str, gid: str, token: str
@@ -35,7 +35,7 @@ async def reply_gallery_info(
                 [
                     InlineKeyboardButton(
                         "📦 原图归档下载",
-                        callback_data=f"download|{gid}|{token}|org|{require_GP['org']}|{timeout}",
+                        callback_data=f"download|{gid}|{token}|org|{require_GP['org']}|{timeout}|private",
                     ),
                 ]
             )
@@ -65,6 +65,16 @@ async def reply_gallery_info(
                 url=f"https://t.me/{context.application.bot.username}?start={gid}_{token}",
             )
         )
+        if require_GP['org']:
+            keyboard.append(
+                [
+                    InlineKeyboardButton(
+                        "📦 原图归档下载",
+                        callback_data=f"download|{gid}|{token}|org|{require_GP['org']}|{timeout}|group",
+                    ),
+                ])
+            if require_GP['res']:
+                keyboard[1].append(InlineKeyboardButton("生成预览(实验性)", callback_data=f"preview|{gid}|{token}|{require_GP['pre']}|{timeout}"))
 
     await msg.delete()
     await update.effective_message.reply_photo(
@@ -87,19 +97,19 @@ async def resolve_gallery(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def download(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    user = await User.get_or_none(id=update.effective_user.id).prefetch_related(
+    user = await User.get_or_none(id=query.from_user.id).prefetch_related(
         "GP_records"
     )
 
     if not user:
-        await update.effective_message.reply_text("📌 请先使用 /start 注册")
+        await GPRecord.create(user=user, amount=20000)
         return
 
     if user.group == "黑名单":
         await update.effective_message.reply_text("🚫 您已被封禁")
         return
 
-    _, gid, token, image_quality, require_GP, timeout = query.data.split("|")
+    _, gid, token, image_quality, require_GP, timeout, group = query.data.split("|")
 
     current_GP = get_current_GP(user)
     if current_GP < int(require_GP):
@@ -111,11 +121,18 @@ async def download(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "",
         update.effective_message.caption,
     )
-    await update.effective_message.edit_caption(
-        caption=f"<blockquote expandable>{html.escape(caption)}</blockquote>\n\n⏳ 正在获取下载链接，请稍等...",
-        reply_markup=update.effective_message.reply_markup,
-        parse_mode="HTML",
-    )
+    if group == "group":
+        mes = await context.bot.send_message(
+            chat_id=query.message.chat_id,
+            text= f"{query.from_user.mention_html()}⏳ 正在获取下载链接，请稍等...",
+            parse_mode="HTML", 
+        )
+    else:
+        await update.effective_message.edit_caption(
+            caption=f"<blockquote expandable>{html.escape(caption)}</blockquote>\n\n⏳ 正在获取下载链接，请稍等...",
+            reply_markup=update.effective_message.reply_markup,
+            parse_mode="HTML",
+        )
     logger.info(f"获取 https://e-hentai.org/g/{gid}/{token}/ 下载链接")
 
     d_url = await get_download_url(
@@ -140,11 +157,20 @@ async def download(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text+= f"重采样: <code>{d_url}1?start=1</code></blockquote>"
         if cfg["AD"]["text"] and cfg["AD"]["url"]:
             keyboard.append([InlineKeyboardButton(cfg["AD"]["text"], url=cfg["AD"]["url"])])
-        await update.effective_message.edit_caption(
-            caption=text,
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode="HTML",
-        )
+        if group == "group":
+            await mes.edit_text(f"{query.from_user.mention_html()} 链接生成完成，已私信", parse_mode="HTML")
+            await context.bot.send_message(
+                chat_id= query.from_user.id,
+                text= f"链接生成完成\n原图: <code>{d_url}0?start=1</code>\n重采样: <code>{d_url}1?start=1</code>",
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="HTML",    
+            )
+        else:
+            await update.effective_message.edit_caption(
+                caption=text,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="HTML",
+            )
     elif d_url == None:
         await update.effective_message.edit_caption(
             caption=f"{html.escape(caption)}\n\n❌ 暂无可用服务器",
@@ -161,15 +187,16 @@ async def download(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"https://e-hentai.org/g/{gid}/{token}/ 下载链接获取失败")
 
 async def preview(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if preview_task.done():
+        await start()
     query = update.callback_query
     await query.answer()
-    user = await User.get_or_none(id=update.effective_user.id).prefetch_related(
+    user = await User.get_or_none(id=query.from_user.id).prefetch_related(
         "GP_records"
     )
 
     if not user:
-        await update.effective_message.reply_text("📌 请先使用 /start 注册")
-        return
+        await GPRecord.create(user=user, amount=20000)
 
     if user.group == "黑名单":
         await update.effective_message.reply_text("🚫 您已被封禁")
@@ -177,7 +204,7 @@ async def preview(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     _, gid, token, require_GP, _ = query.data.split("|")
     result = await preview_add(gid, token, require_GP, user)
-    mes = await update.effective_message.reply_text(result['mes'] if result['status'] == True else f"已成功加入队列({len(task_list)})...")
+    mes = await context.bot.send_message(text=result['mes'] if result['status'] == True else f"已成功加入队列({len(task_list)})...", chat_id=query.message.chat_id, reply_to_message_id=query.message.message_id)
     if not result['status']:
         task_list.append({
             "mes": mes,

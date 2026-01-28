@@ -55,3 +55,5 @@ if __name__ == "__main__":
     import uvicorn
 
     uvicorn.run(app, host=None, port=4655)
+
+# 1.0

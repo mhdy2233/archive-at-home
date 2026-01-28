@@ -11,14 +11,14 @@ from utils.api import clean_results_cache
 from utils.client import refresh_all_clients
 from utils.GP_action import clean_GP_records
 from utils.resolve import fetch_tag_map
-from utils.preview import preview_start
+from utils.preview import start
 
 logger.add("log.log", encoding="utf-8")
 
 async def post_init(app):
     await init_db()
     await app.bot.set_my_commands(BOT_COMMANDS)
-    asyncio.create_task(preview_start())
+    await start()
 
 
 telegram_app = (
