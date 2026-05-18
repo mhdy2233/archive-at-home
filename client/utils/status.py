@@ -47,7 +47,7 @@ async def get_status():
         status["EX"] = text
     try:
         res = httpx.get(
-            "https://e-hentai.org/archiver.php?gid=3614913&token=135f66307e",
+            "https://e-hentai.org/archiver.php?gid=3858751&token=d3de60e849",
             headers=headers,
             proxy=config["proxy"],
         )
